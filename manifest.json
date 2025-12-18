@@ -1,0 +1,17 @@
+
+{
+  "short_name": "Zenith",
+  "name": "Zenith Personal Organizer",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3112/3112946.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#F5F5F7",
+  "background_color": "#F5F5F7"
+}

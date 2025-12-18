@@ -1,0 +1,9 @@
+
+{
+  "name": "Zenith - Personal Organizer",
+  "description": "A minimalist, Apple-inspired suite for tracking daily expenses, notes, and habits.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
