@@ -5,7 +5,7 @@ import {
   Search, Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
   CreditCard, MoreHorizontal, Settings as SettingsIcon, ShieldCheck, Mail, Lock,
   ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown,
-  X, Check
+  X, Check, CalendarDays
 } from 'lucide-react';
 import { Expense, Habit, Note, AppTab, Language } from './types';
 
@@ -21,12 +21,12 @@ const translations = {
     desc: "Description", amount: "Amount", category: "Category", add: "Add",
     habitsTitle: "Daily Goals", startTracking: "Start Tracking",
     myJournal: "My Journal", newEntry: "New Entry", untitled: "Untitled Entry",
-    beginThoughts: "Begin your thoughts...", words: "Words", saved: "Saved",
+    beginThoughts: "Start writing...", words: "Words", saved: "Saved",
     delete: "Delete", signOut: "Sign Out", language: "Language",
     cloudSync: "Cloud Sync", notifications: "Notifications", privacy: "Privacy",
-    theme: "Theme", placeholderJournal: "Reflect on your day...",
+    theme: "Theme", placeholderJournal: "Reflect on your day, ideas, or dreams...",
     back: "Back", confirmDelete: "Delete this entry?", currency: "Rp",
-    update: "Update", cancel: "Cancel",
+    update: "Update", cancel: "Cancel", created: "Created", edited: "Edited",
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -42,12 +42,12 @@ const translations = {
     desc: "Deskripsi", amount: "Jumlah", category: "Kategori", add: "Tambah",
     habitsTitle: "Target Harian", startTracking: "Mulai Lacak",
     myJournal: "Jurnal Saya", newEntry: "Catatan Baru", untitled: "Judul Kosong",
-    beginThoughts: "Mulai menulis pikiranmu...", words: "Kata", saved: "Tersimpan",
+    beginThoughts: "Mulai menulis...", words: "Kata", saved: "Tersimpan",
     delete: "Hapus", signOut: "Keluar", language: "Bahasa",
     cloudSync: "Sinkronisasi Cloud", notifications: "Notifikasi", privacy: "Privasi",
-    theme: "Tema", placeholderJournal: "Renungkan harimu...",
+    theme: "Tema", placeholderJournal: "Renungkan harimu, ide, atau mimpimu...",
     back: "Kembali", confirmDelete: "Hapus entri ini?", currency: "Rp",
-    update: "Perbarui", cancel: "Batal",
+    update: "Perbarui", cancel: "Batal", created: "Dibuat", edited: "Diedit",
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
@@ -209,25 +209,39 @@ const App: React.FC = () => {
     if (outcome === 'accepted') setInstallPrompt(null);
   };
 
+  // --- HELPER FORMAT DATE ---
+  const formatDateTime = (isoString: string) => {
+    if (!isoString) return '-';
+    const date = new Date(isoString);
+    return date.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  };
+
+  const formatShortDate = (isoString: string) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', {
+      day: 'numeric', month: 'short'
+    });
+  };
+
   // --- EXPENSE CRUD ---
   const handleAddExpense = async () => {
     if (newExpense.description && newExpense.amount) {
-      // Logic for UPDATE
       if (editingExpenseId) {
         const { data, error } = await supabase.from('expenses').update({
             description: newExpense.description, 
             amount: parseFloat(newExpense.amount),
             category: newExpense.category,
-            updated_at: new Date().toISOString() // Update timestamp
+            updated_at: new Date().toISOString() 
         }).eq('id', editingExpenseId).select();
         
         if (!error && data) {
             setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e));
             cancelEditExpense(); 
         }
-      } 
-      // Logic for INSERT
-      else {
+      } else {
         const { data, error } = await supabase.from('expenses').insert([{
           description: newExpense.description, amount: parseFloat(newExpense.amount),
           category: newExpense.category, user_id: currentUser.id, date: new Date().toISOString()
@@ -264,21 +278,18 @@ const App: React.FC = () => {
   // --- HABIT CRUD ---
   const handleAddHabit = async () => {
     if(newHabit.name) {
-      // Logic for UPDATE
       if (editingHabitId) {
         const { data, error } = await supabase.from('habits').update({
             name: newHabit.name,
             reminder_time: newHabit.time,
-            updated_at: new Date().toISOString() // Update timestamp
+            updated_at: new Date().toISOString()
         }).eq('id', editingHabitId).select();
 
         if (!error && data) {
             setHabits(habits.map(h => h.id === editingHabitId ? data[0] : h));
             cancelEditHabit();
         }
-      }
-      // Logic for INSERT
-      else {
+      } else {
         const { data, error } = await supabase.from('habits').insert([{ name: newHabit.name, streak: 0, completed_dates: [], reminder_time: newHabit.time, user_id: currentUser.id }]).select();
         if (!error && data) { setHabits([data[0], ...habits]); setNewHabit({name:'', time:''}); }
       }
@@ -306,7 +317,7 @@ const App: React.FC = () => {
     const { data, error } = await supabase.from('habits').update({ 
       completed_dates: updatedDates, 
       streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1,
-      updated_at: new Date().toISOString() // Update timestamp
+      updated_at: new Date().toISOString()
     }).eq('id', h.id).select();
 
     if (!error && data) setHabits(habits.map(item => item.id === h.id ? data[0] : item));
@@ -323,10 +334,18 @@ const App: React.FC = () => {
   const handleSaveNoteManual = async () => {
     if (!activeNote || !currentUser) return;
     setIsSaving(true);
-    const noteData = { title: activeNote.title || t.untitled, content: activeNote.content || '', user_id: currentUser.id, updated_at: new Date().toISOString() };
+    // Note: created_at is handled by Supabase default now() on insert
+    const noteData = { 
+        title: activeNote.title || t.untitled, 
+        content: activeNote.content || '', 
+        user_id: currentUser.id, 
+        updated_at: new Date().toISOString() 
+    };
+    
     const { data, error } = activeNote.id && activeNote.id.length > 15 
       ? await supabase.from('notes').update(noteData).eq('id', activeNote.id).select()
       : await supabase.from('notes').insert([noteData]).select();
+    
     if (!error && data) {
       setNotes(activeNote.id && activeNote.id.length > 15 ? notes.map(n => n.id === activeNote.id ? data[0] : n) : [data[0], ...notes]);
       setActiveNote(data[0]);
@@ -516,38 +535,74 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Journal Tab (Save Manual) */}
+        {/* Journal Tab (IMPROVED) */}
         {activeTab === 'notes' && (
-          <div className="grid grid-cols-12 gap-0 md:gap-10 h-[calc(100vh-280px)] fade-in overflow-hidden">
-            <div className={`col-span-12 md:col-span-4 flex flex-col space-y-4 overflow-y-auto pr-1 ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
-              <button onClick={() => { setActiveNote({ title: '', content: '', user_id: currentUser.id } as any); setIsMobileNoteEditing(true); }} className="apple-button w-full py-3 mb-2 shadow-sm"><Plus size={18} className="mr-2 inline"/> {t.newEntry}</button>
+          <div className="grid grid-cols-12 gap-0 md:gap-8 h-[calc(100vh-280px)] fade-in overflow-hidden">
+            {/* Sidebar List */}
+            <div className={`col-span-12 md:col-span-4 flex flex-col space-y-3 overflow-y-auto pr-2 custom-scrollbar ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
+              <button onClick={() => { setActiveNote({ title: '', content: '', user_id: currentUser.id } as any); setIsMobileNoteEditing(true); }} className="apple-button w-full py-4 mb-2 shadow-sm flex items-center justify-center"><Plus size={18} className="mr-2"/> {t.newEntry}</button>
               {notes.map(n => (
-                <div key={n.id} onClick={() => { setActiveNote(n); setIsMobileNoteEditing(true); }} className={`apple-card p-5 cursor-pointer border-none transition-all ${activeNote?.id === n.id ? 'bg-[#F2F2F7]' : 'hover:bg-[#F9F9FB]'}`}>
-                  <h5 className="font-bold truncate">{n.title || t.untitled}</h5>
-                  <p className="text-[13px] text-[#86868B] line-clamp-2 mt-1">{n.content || "..."}</p>
+                <div key={n.id} onClick={() => { setActiveNote(n); setIsMobileNoteEditing(true); }} className={`apple-card p-5 cursor-pointer border-none transition-all group ${activeNote?.id === n.id ? 'bg-[#F2F2F7] ring-1 ring-[#E5E5EA]' : 'hover:bg-[#F9F9FB]'}`}>
+                  <h5 className={`font-bold truncate text-[15px] ${activeNote?.id === n.id ? 'text-[#007AFF]' : 'text-[#1D1D1F]'}`}>{n.title || t.untitled}</h5>
+                  <p className="text-[13px] text-[#86868B] line-clamp-2 mt-1.5 leading-relaxed">{n.content || t.beginThoughts}</p>
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#F2F2F7] opacity-60 group-hover:opacity-100 transition-opacity">
+                     <span className="text-[10px] font-bold text-[#86868B] uppercase tracking-wide flex items-center"><CalendarDays size={10} className="mr-1"/> {formatShortDate(n.updated_at || n.created_at)}</span>
+                  </div>
                 </div>
               ))}
             </div>
-            <div className={`col-span-12 md:col-span-8 flex-col h-full apple-card p-6 md:p-12 border-none bg-white relative ${isMobileNoteEditing ? 'flex' : 'hidden md:flex'}`}>
-               <div className="flex items-center justify-between mb-8">
+
+            {/* Editor Area */}
+            <div className={`col-span-12 md:col-span-8 flex-col h-full apple-card p-0 border-none bg-white relative overflow-hidden shadow-sm ${isMobileNoteEditing ? 'flex' : 'hidden md:flex'}`}>
+               {/* Editor Toolbar */}
+               <div className="flex items-center justify-between px-6 py-4 border-b border-[#F2F2F7] bg-white z-10">
                   <button onClick={() => setIsMobileNoteEditing(false)} className="md:hidden text-[#007AFF] font-bold flex items-center"><ArrowLeft size={20} className="mr-1" /> {t.back}</button>
-                  <div className="flex items-center space-x-3 ml-auto">
+                  <div className="flex items-center space-x-2 ml-auto">
                     {activeNote && (
                       <>
-                        <button onClick={handleSaveNoteManual} disabled={isSaving} className={`flex items-center px-5 py-2 rounded-full text-sm font-bold transition-all ${isSaving ? 'bg-gray-100 text-gray-400' : 'bg-[#007AFF] text-white hover:bg-[#0062CC]'}`}>
-                          <Save size={16} className="mr-2"/> {isSaving ? '...' : 'Save'}
+                        <button onClick={handleSaveNoteManual} disabled={isSaving} className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wide ${isSaving ? 'bg-gray-100 text-gray-400' : 'bg-[#007AFF] text-white hover:bg-[#0062CC]'}`}>
+                          <Save size={14} className="mr-2"/> {isSaving ? '...' : t.saved}
                         </button>
-                        <button onClick={() => deleteNote(activeNote.id)} className="text-red-500 font-bold px-3 py-2">Delete</button>
+                        <button onClick={() => deleteNote(activeNote.id)} className="text-[#D1D1D6] hover:text-red-500 p-2.5 rounded-xl hover:bg-red-50 transition-colors"><Trash2 size={18}/></button>
                       </>
                     )}
                   </div>
                </div>
-               <input className="text-2xl md:text-4xl font-extrabold bg-transparent outline-none mb-6 w-full" placeholder={t.untitled} value={activeNote?.title || ''} 
-               onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} />
-               <textarea className="flex-1 w-full bg-transparent outline-none resize-none text-[17px] md:text-[20px]" placeholder={t.placeholderJournal} value={activeNote?.content || ''} 
-               onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} />
-               <div className="hidden md:flex mt-8 pt-6 border-t border-[#F2F2F7] text-[11px] font-bold text-[#86868B] uppercase tracking-widest">
-                 <span className="flex items-center"><ShieldCheck size={14} className="mr-1"/> Sync Active</span>
+               
+               {/* Editor Content */}
+               <div className="flex-1 overflow-y-auto p-6 md:p-10">
+                 {activeNote && (
+                    <div className="max-w-3xl mx-auto">
+                        {/* Metadata Header */}
+                        {activeNote.id && (
+                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mb-8 text-[11px] text-[#86868B] font-semibold uppercase tracking-widest">
+                              <span className="flex items-center"><Calendar size={12} className="mr-1.5"/> {t.created}: {formatDateTime(activeNote.created_at)}</span>
+                              {activeNote.updated_at && activeNote.updated_at !== activeNote.created_at && (
+                                <span className="flex items-center"><Pencil size={12} className="mr-1.5"/> {t.edited}: {formatDateTime(activeNote.updated_at)}</span>
+                              )}
+                           </div>
+                        )}
+
+                        <input 
+                            className="text-3xl md:text-5xl font-extrabold bg-transparent outline-none mb-6 w-full text-[#1D1D1F] placeholder-gray-300" 
+                            placeholder={t.untitled} 
+                            value={activeNote?.title || ''} 
+                            onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} 
+                        />
+                        <textarea 
+                            className="w-full bg-transparent outline-none resize-none text-[17px] md:text-[19px] leading-relaxed text-[#424245] placeholder-gray-300 min-h-[400px]" 
+                            placeholder={t.placeholderJournal} 
+                            value={activeNote?.content || ''} 
+                            onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} 
+                        />
+                    </div>
+                 )}
+                 {!activeNote && (
+                    <div className="h-full flex flex-col items-center justify-center text-[#D1D1D6]">
+                        <Pencil size={48} className="mb-4 opacity-20"/>
+                        <p className="text-[#86868B] font-medium">{t.beginThoughts}</p>
+                    </div>
+                 )}
                </div>
             </div>
           </div>
