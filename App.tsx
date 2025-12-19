@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Wallet, CheckCircle2, Plus, Trash2, ChevronRight, Pencil, Flame,
   Search, Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
   CreditCard, MoreHorizontal, Settings as SettingsIcon, ShieldCheck, Mail, Lock,
-  ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown
+  ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown, X
 } from 'lucide-react';
 import { Expense, Habit, Note, AppTab, Language } from './types';
 
@@ -12,10 +12,10 @@ import { Expense, Habit, Note, AppTab, Language } from './types';
 const translations = {
   en: {
     overview: "Overview", wallet: "Wallet", habits: "Habits", journal: "Journal",
-    lastSevenDays: "weekly expense", thisMonth: "monthly expense", today: "daily expense",
+    lastSevenDays: "Last 7 Days", thisMonth: "This Month", today: "Today",
     account: "Account", preferences: "Preferences", hello: "Hello",
     totalSpend: "Total Spend", bestStreak: "Best Streak", records: "Records",
-    recentActivity: "Recent activity", todaysGoals: "in A day", financeFIlter: "weekly",
+    recentActivity: "Recent activity", todaysGoals: "Today's Goals",
     manage: "Manage", viewAll: "View All", logTransaction: "Log Transaction",
     desc: "Description", amount: "Amount", category: "Category", add: "Add",
     habitsTitle: "Daily Goals", startTracking: "Start Tracking",
@@ -24,7 +24,8 @@ const translations = {
     delete: "Delete", signOut: "Sign Out", language: "Language",
     cloudSync: "Cloud Sync", notifications: "Notifications", privacy: "Privacy",
     theme: "Theme", placeholderJournal: "Reflect on your day...",
-    back: "Back", confirmDelete: "Delete this entry?", currency: "Rp",
+    back: "Back", confirmDelete: "Delete this item permanently?", currency: "Rp",
+    update: "Update", cancel: "Cancel",
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -44,7 +45,8 @@ const translations = {
     delete: "Hapus", signOut: "Keluar", language: "Bahasa",
     cloudSync: "Sinkronisasi Cloud", notifications: "Notifikasi", privacy: "Privasi",
     theme: "Tema", placeholderJournal: "Renungkan harimu...",
-    back: "Kembali", confirmDelete: "Hapus entri ini?", currency: "Rp",
+    back: "Kembali", confirmDelete: "Hapus item ini secara permanen?", currency: "Rp",
+    update: "Perbarui", cancel: "Batal",
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
@@ -122,37 +124,32 @@ const App: React.FC = () => {
   // Filter State
   const [financeFilter, setFinanceFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
-  // UI States
+  // UI/Editing States
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Others' });
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [newHabit, setNewHabit] = useState({ name: '', time: '' });
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [isMobileNoteEditing, setIsMobileNoteEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const t = translations[lang];
 
-  // --- 1. Logika Filter Berbasis Periode ---
+  // --- Filter Logic ---
   const filteredExpenses = useMemo(() => {
     const now = new Date();
     return expenses.filter(e => {
       const itemDate = new Date(e.date);
-      if (financeFilter === 'daily') {
-        return itemDate.toDateString() === now.toDateString();
-      } else if (financeFilter === 'weekly') {
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return itemDate >= oneWeekAgo;
-      } else {
-        // Monthly
-        return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
-      }
+      if (financeFilter === 'daily') return itemDate.toDateString() === now.toDateString();
+      if (financeFilter === 'weekly') return itemDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
     });
   }, [expenses, financeFilter]);
 
-  const totalSpentFiltered = useMemo(() => 
-    filteredExpenses.reduce((a, b) => a + b.amount, 0), 
-  [filteredExpenses]);
+  const totalSpentFiltered = useMemo(() => filteredExpenses.reduce((a, b) => a + b.amount, 0), [filteredExpenses]);
+  const totalSpentGlobal = useMemo(() => expenses.reduce((a, b) => a + b.amount, 0), [expenses]);
 
-  // --- Auth & Data Lifecycle ---
+  // --- Auth Lifecycle ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setCurrentUser(session?.user ?? null);
@@ -197,24 +194,65 @@ const App: React.FC = () => {
     if (outcome === 'accepted') setInstallPrompt(null);
   };
 
-  // CRUD Actions (Sama seperti sebelumnya)
-  const handleAddExpense = async () => {
-    if (newExpense.description && newExpense.amount) {
-      const { data, error } = await supabase.from('expenses').insert([{
-        description: newExpense.description, amount: parseFloat(newExpense.amount),
-        category: newExpense.category, user_id: currentUser.id, date: new Date().toISOString()
-      }]).select();
-      if (!error && data) { setExpenses([data[0], ...expenses]); setNewExpense({ description: '', amount: '', category: 'Others' }); }
-    }
-  };
-  const deleteExpense = async (id: string) => { if (!(await supabase.from('expenses').delete().eq('id', id)).error) setExpenses(expenses.filter(x => x.id !== id)); };
+  // --- Wallet Actions (Add & Edit) ---
+  const handleSaveExpense = async () => {
+    if (!newExpense.description || !newExpense.amount) return;
+    
+    const payload = {
+      description: newExpense.description,
+      amount: parseFloat(newExpense.amount),
+      category: newExpense.category,
+      user_id: currentUser.id
+    };
 
-  const handleAddHabit = async () => {
-    if(newHabit.name) {
-      const { data, error } = await supabase.from('habits').insert([{ name: newHabit.name, streak: 0, completed_dates: [], reminder_time: newHabit.time, user_id: currentUser.id }]).select();
-      if (!error && data) { setHabits([data[0], ...habits]); setNewHabit({name:'', time:''}); }
+    if (editingExpenseId) {
+      const { data, error } = await supabase.from('expenses').update(payload).eq('id', editingExpenseId).select();
+      if (!error && data) {
+        setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e));
+        setEditingExpenseId(null);
+        setNewExpense({ description: '', amount: '', category: 'Others' });
+      }
+    } else {
+      const { data, error } = await supabase.from('expenses').insert([{ ...payload, date: new Date().toISOString() }]).select();
+      if (!error && data) {
+        setExpenses([data[0], ...expenses]);
+        setNewExpense({ description: '', amount: '', category: 'Others' });
+      }
     }
   };
+
+  const deleteExpense = async (id: string) => {
+    if (!window.confirm(t.confirmDelete)) return;
+    const { error } = await supabase.from('expenses').delete().eq('id', id);
+    if (!error) setExpenses(expenses.filter(x => x.id !== id));
+  };
+
+  // --- Habit Actions (Add & Edit) ---
+  const handleSaveHabit = async () => {
+    if(!newHabit.name) return;
+    
+    const payload = {
+      name: newHabit.name,
+      reminder_time: newHabit.time,
+      user_id: currentUser.id
+    };
+
+    if (editingHabitId) {
+      const { data, error } = await supabase.from('habits').update(payload).eq('id', editingHabitId).select();
+      if (!error && data) {
+        setHabits(habits.map(h => h.id === editingHabitId ? data[0] : h));
+        setEditingHabitId(null);
+        setNewHabit({name:'', time:''});
+      }
+    } else {
+      const { data, error } = await supabase.from('habits').insert([{ ...payload, streak: 0, completed_dates: [] }]).select();
+      if (!error && data) {
+        setHabits([data[0], ...habits]);
+        setNewHabit({name:'', time:''});
+      }
+    }
+  };
+
   const toggleHabit = async (h: Habit) => {
     const today = new Date().toLocaleDateString();
     const alreadyDone = h.completed_dates?.includes(today);
@@ -222,8 +260,14 @@ const App: React.FC = () => {
     const { data, error } = await supabase.from('habits').update({ completed_dates: updatedDates, streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1 }).eq('id', h.id).select();
     if (!error && data) setHabits(habits.map(item => item.id === h.id ? data[0] : item));
   };
-  const deleteHabit = async (id: string) => { if (!(await supabase.from('habits').delete().eq('id', id)).error) setHabits(habits.filter(x => x.id !== id)); };
 
+  const deleteHabit = async (id: string) => {
+    if (!window.confirm(t.confirmDelete)) return;
+    const { error } = await supabase.from('habits').delete().eq('id', id);
+    if (!error) setHabits(habits.filter(x => x.id !== id));
+  };
+
+  // --- Note Actions ---
   const handleSaveNoteManual = async () => {
     if (!activeNote || !currentUser) return;
     setIsSaving(true);
@@ -237,10 +281,16 @@ const App: React.FC = () => {
     }
     setIsSaving(false);
   };
-  const deleteNote = async (id: string) => { if(window.confirm(t.confirmDelete) && !(await supabase.from('notes').delete().eq('id', id)).error) { setNotes(notes.filter(n => n.id !== id)); setActiveNote(null); setIsMobileNoteEditing(false); } };
+
+  const deleteNote = async (id: string) => {
+    if(window.confirm(t.confirmDelete) && !(await supabase.from('notes').delete().eq('id', id)).error) {
+      setNotes(notes.filter(n => n.id !== id));
+      setActiveNote(null);
+      setIsMobileNoteEditing(false);
+    }
+  };
 
   // UI Helpers
-  const totalSpentGlobal = useMemo(() => expenses.reduce((a, b) => a + b.amount, 0), [expenses]);
   const formatCurrency = (val: number) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val).replace('IDR', 'Rp');
   const getCategoryIcon = (cat: string) => {
     const icons: any = { Food: <Coffee size={16}/>, Transport: <Car size={16}/>, Shopping: <ShoppingBag size={16}/>, Bills: <CreditCard size={16}/>, Health: <Heart size={16}/>, Entertainment: <Gamepad2 size={16}/> };
@@ -279,7 +329,7 @@ const App: React.FC = () => {
       <main className="flex-1 md:ml-[260px] pb-24 md:pb-12 pt-safe px-6 md:px-16 w-full max-w-[1280px]">
         <header className={`py-10 md:py-20 flex justify-between items-center ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#1D1D1F] tracking-tight">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#1D1D1F] tracking-tight capitalize">
               {activeTab === 'dashboard' && `${t.hello}, ${currentUser.user_metadata?.full_name?.split(' ')[0] || 'User'}`}
               {activeTab === 'finance' && t.wallet} {activeTab === 'habits' && t.habits}
               {activeTab === 'notes' && t.journal} {activeTab === 'settings' && t.preferences}
@@ -288,7 +338,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* Dashboard Content */}
+        {/* Dashboard Tab */}
         {activeTab === 'dashboard' && (
           <div className="space-y-12 fade-in">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -296,7 +346,6 @@ const App: React.FC = () => {
               <div className="apple-card p-8"><div className="w-10 h-10 rounded-xl bg-[#F5F5F7] flex items-center justify-center text-[#FF9500] mb-6"><Flame size={20}/></div><p className="text-[11px] font-bold text-[#86868B] uppercase mb-1.5">{t.bestStreak}</p><h3 className="text-3xl font-bold">{habits.length > 0 ? Math.max(...habits.map(h => h.streak), 0) : 0} <span className="text-base text-[#86868B]">Days</span></h3></div>
               <div className="apple-card p-8"><div className="w-10 h-10 rounded-xl bg-[#F5F5F7] flex items-center justify-center text-[#5856D6] mb-6"><Pencil size={20}/></div><p className="text-[11px] font-bold text-[#86868B] uppercase mb-1.5">{t.records}</p><h3 className="text-3xl font-bold">{notes.length}</h3></div>
             </div>
-            {/* Aktivitas Terbaru (Global) */}
             <div className="apple-card p-8"><h4 className="font-bold text-xl mb-8">{t.recentActivity}</h4>
                 {expenses.slice(0, 4).map(e => (
                   <div key={e.id} className="flex justify-between items-center mb-6 last:mb-0">
@@ -308,63 +357,66 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Finance Tab */}
+        {/* Finance Tab (Edit & Konfirmasi Hapus) */}
         {activeTab === 'finance' && (
           <div className="space-y-8 fade-in">
-            {/* Segmented Control */}
             <div className="flex bg-[#F2F2F7] p-1 rounded-xl w-full max-w-sm mx-auto shadow-inner">
               {(['daily', 'weekly', 'monthly'] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFinanceFilter(f)}
-                  className={`flex-1 py-1.5 text-[13px] font-bold rounded-lg transition-all ${
-                    financeFilter === f ? 'bg-white text-[#007AFF] shadow-sm' : 'text-[#86868B]'
-                  }`}
-                >
-                  {f === 'daily' ? (lang === 'id' ? 'Hari' : 'Daily') : f === 'weekly' ? (lang === 'id' ? 'Minggu' : 'Weekly') : (lang === 'id' ? 'Bulan' : 'Monthly')}
-                </button>
+                <button key={f} onClick={() => setFinanceFilter(f)} className={`flex-1 py-1.5 text-[13px] font-bold rounded-lg transition-all ${financeFilter === f ? 'bg-white text-[#007AFF] shadow-sm' : 'text-[#86868B]'}`}>{f}</button>
               ))}
             </div>
 
-            {/* Filter Summary */}
             <div className="apple-card p-8 bg-[#007AFF] text-white border-none relative overflow-hidden">
                <TrendingDown className="absolute right-[-20px] bottom-[-20px] w-40 h-40 opacity-10 rotate-[-15deg]" />
                 <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-1">
-                Total {
-                  financeFilter === 'daily' ? t.today : 
-                  financeFilter === 'weekly' ? t.lastSevenDays : 
-                  t.thisMonth
-                }
+                Total {financeFilter === 'daily' ? t.today : financeFilter === 'weekly' ? t.lastSevenDays : t.thisMonth}
               </p>
                <h3 className="text-4xl font-extrabold">{formatCurrency(totalSpentFiltered)}</h3>
             </div>
 
-            <div className="apple-card p-8 bg-[#F9F9FB] border-none"><div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <input className="md:col-span-5 apple-input" placeholder={t.desc} value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})}/>
-              <input className="md:col-span-3 apple-input" type="number" placeholder="0" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})}/>
-              <select className="md:col-span-3 apple-input bg-white" value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
-              <button onClick={handleAddExpense} className="md:col-span-1 apple-button h-11"><Plus size={20}/></button>
-            </div></div>
+            <div className={`apple-card p-8 transition-all ${editingExpenseId ? 'bg-amber-50 border-amber-200' : 'bg-[#F9F9FB] border-none'}`}>
+               <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-bold text-lg">{editingExpenseId ? t.update : t.logTransaction}</h4>
+                  {editingExpenseId && <button onClick={() => {setEditingExpenseId(null); setNewExpense({description:'', amount:'', category:'Others'})}} className="text-[#86868B]"><X size={20}/></button>}
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                 <input className="md:col-span-5 apple-input" placeholder={t.desc} value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})}/>
+                 <input className="md:col-span-3 apple-input" type="number" placeholder="0" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})}/>
+                 <select className="md:col-span-3 apple-input bg-white" value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
+                 <button onClick={handleSaveExpense} className={`md:col-span-1 apple-button h-11 ${editingExpenseId ? 'bg-amber-500' : ''}`}>{editingExpenseId ? <Save size={20}/> : <Plus size={20}/>}</button>
+               </div>
+            </div>
 
             <div className="apple-card overflow-hidden divide-y divide-[#F2F2F7]">
               {filteredExpenses.map(e => (
                 <div key={e.id} className="p-5 flex items-center group hover:bg-[#F9F9FB]">
-                  <div className="flex-1 flex items-center space-x-4"><div className="w-11 h-11 rounded-xl bg-[#F5F5F7] flex items-center justify-center">{getCategoryIcon(e.category)}</div><div><p className="font-bold">{e.description}</p><p className="text-[12px] text-[#86868B]">{t.categories[e.category]} • {new Date(e.date).toLocaleDateString()}</p></div></div>
-                  <div className="flex items-center space-x-6"><p className="font-bold">-{formatCurrency(e.amount)}</p><button onClick={() => deleteExpense(e.id)} className="text-[#D1D1D6] hover:text-red-500 opacity-0 group-hover:opacity-100 p-2"><Trash2 size={18}/></button></div>
+                  <div className="flex-1 flex items-center space-x-4">
+                    <div className="w-11 h-11 rounded-xl bg-[#F5F5F7] flex items-center justify-center">{getCategoryIcon(e.category)}</div>
+                    <div><p className="font-bold">{e.description}</p><p className="text-[12px] text-[#86868B]">{t.categories[e.category]} • {new Date(e.date).toLocaleDateString()}</p></div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                     <p className="font-bold">-{formatCurrency(e.amount)}</p>
+                     <div className="flex opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => {setEditingExpenseId(e.id); setNewExpense({description:e.description, amount:e.amount.toString(), category:e.category})}} className="p-2 text-[#007AFF] hover:bg-blue-50 rounded-lg mr-1"><Pencil size={18}/></button>
+                        <button onClick={() => deleteExpense(e.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+                     </div>
+                  </div>
                 </div>
               ))}
-              {filteredExpenses.length === 0 && <EmptyState message={lang === 'id' ? 'Catatan periode ini kosong.' : 'No records for this period.'} />}
             </div>
           </div>
         )}
 
-        {/* Habits Tab (Tetap Sama) */}
+        {/* Habits Tab (Edit & Konfirmasi Hapus) */}
         {activeTab === 'habits' && (
           <div className="space-y-8 fade-in">
-            <div className="apple-card p-8 bg-[#F9F9FB] border-none flex flex-col md:flex-row gap-4">
+            <div className={`apple-card p-8 flex flex-col md:flex-row gap-4 transition-all ${editingHabitId ? 'bg-amber-50 border-amber-200' : 'bg-[#F9F9FB] border-none'}`}>
               <input className="apple-input flex-1" placeholder={t.habitsTitle} value={newHabit.name} onChange={e => setNewHabit({...newHabit, name: e.target.value})}/>
               <input type="time" className="apple-input md:w-40 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
-              <button onClick={handleAddHabit} className="apple-button px-8 h-12">{t.startTracking}</button>
+              <div className="flex gap-2">
+                <button onClick={handleSaveHabit} className="apple-button px-8 h-12 flex-1">{editingHabitId ? t.update : t.add}</button>
+                {editingHabitId && <button onClick={() => {setEditingHabitId(null); setNewHabit({name:'', time:''})}} className="apple-button bg-gray-200 text-gray-700 px-4 h-12"><X/></button>}
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {habits.map(h => {
@@ -375,20 +427,23 @@ const App: React.FC = () => {
                       <button onClick={() => toggleHabit(h)} className={`w-11 h-11 rounded-full border-2 flex items-center justify-center ${done ? 'bg-[#34C759] border-[#34C759] text-white' : 'border-[#D1D1D6] hover:border-[#34C759]'}`}><CheckCircle2 size={24}/></button>
                       <div><h4 className={`text-[17px] font-bold ${done ? 'text-[#86868B] line-through' : ''}`}>{h.name}</h4><div className="flex items-center space-x-4 text-[12px] font-bold uppercase mt-1"><span className="text-[#FF9500] flex items-center"><Flame size={14} className="mr-1"/> {h.streak} Streak</span></div></div>
                     </div>
-                    <button onClick={() => deleteHabit(h.id)} className="text-[#D1D1D6] hover:text-red-500 opacity-0 group-hover:opacity-100 p-2"><Trash2 size={18}/></button>
+                    <div className="flex opacity-0 group-hover:opacity-100 transition-all">
+                      <button onClick={() => {setEditingHabitId(h.id); setNewHabit({name:h.name, time:h.reminder_time || ''})}} className="p-2 text-[#007AFF] hover:bg-blue-50 rounded-lg mr-1"><Pencil size={18}/></button>
+                      <button onClick={() => deleteHabit(h.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+                    </div>
                   </div>
               )})}
             </div>
           </div>
         )}
 
-        {/* Journal Tab (Save Manual) */}
+        {/* Journal Tab */}
         {activeTab === 'notes' && (
           <div className="grid grid-cols-12 gap-0 md:gap-10 h-[calc(100vh-280px)] fade-in overflow-hidden">
             <div className={`col-span-12 md:col-span-4 flex flex-col space-y-4 overflow-y-auto pr-1 ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
               <button onClick={() => { setActiveNote({ title: '', content: '', user_id: currentUser.id } as any); setIsMobileNoteEditing(true); }} className="apple-button w-full py-3 mb-2 shadow-sm"><Plus size={18} className="mr-2 inline"/> {t.newEntry}</button>
               {notes.map(n => (
-                <div key={n.id} onClick={() => { setActiveNote(n); setIsMobileNoteEditing(true); }} className={`apple-card p-5 cursor-pointer border-none transition-all ${activeNote?.id === n.id ? 'bg-[#F2F2F7]' : 'hover:bg-[#F9F9FB]'}`}>
+                <div key={n.id} onClick={() => { setActiveNote(n); setIsMobileNoteEditing(true); }} className={`apple-card p-5 cursor-pointer border-none transition-all group ${activeNote?.id === n.id ? 'bg-[#F2F2F7]' : 'hover:bg-[#F9F9FB]'}`}>
                   <h5 className="font-bold truncate">{n.title || t.untitled}</h5>
                   <p className="text-[13px] text-[#86868B] line-clamp-2 mt-1">{n.content || "..."}</p>
                 </div>
@@ -401,20 +456,15 @@ const App: React.FC = () => {
                     {activeNote && (
                       <>
                         <button onClick={handleSaveNoteManual} disabled={isSaving} className={`flex items-center px-5 py-2 rounded-full text-sm font-bold transition-all ${isSaving ? 'bg-gray-100 text-gray-400' : 'bg-[#007AFF] text-white hover:bg-[#0062CC]'}`}>
-                          <Save size={16} className="mr-2"/> {isSaving ? '...' : 'Save'}
+                          <Save size={16} className="mr-2"/> {isSaving ? '...' : t.saved}
                         </button>
-                        <button onClick={() => deleteNote(activeNote.id)} className="text-red-500 font-bold px-3 py-2">Delete</button>
+                        <button onClick={() => deleteNote(activeNote.id)} className="text-red-500 font-bold px-3 py-2 hover:bg-red-50 rounded-full transition-colors">{t.delete}</button>
                       </>
                     )}
                   </div>
                </div>
-               <input className="text-2xl md:text-4xl font-extrabold bg-transparent outline-none mb-6 w-full" placeholder={t.untitled} value={activeNote?.title || ''} 
-                onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} />
-               <textarea className="flex-1 w-full bg-transparent outline-none resize-none text-[17px] md:text-[20px]" placeholder={t.placeholderJournal} value={activeNote?.content || ''} 
-                onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} />
-               <div className="hidden md:flex mt-8 pt-6 border-t border-[#F2F2F7] text-[11px] font-bold text-[#86868B] uppercase tracking-widest">
-                 <span className="flex items-center"><ShieldCheck size={14} className="mr-1"/> Sync Active</span>
-               </div>
+               <input className="text-2xl md:text-4xl font-extrabold bg-transparent outline-none mb-6 w-full" placeholder={t.untitled} value={activeNote?.title || ''} onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} />
+               <textarea className="flex-1 w-full bg-transparent outline-none resize-none text-[17px] md:text-[20px] leading-relaxed" placeholder={t.placeholderJournal} value={activeNote?.content || ''} onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} />
             </div>
           </div>
         )}
@@ -434,7 +484,7 @@ const App: React.FC = () => {
                 </div>
                 {!isInstalled && (
                   <div className="p-6 flex items-center justify-between cursor-pointer hover:bg-[#F9F9FB]" onClick={handleInstallClick}>
-                    <div className="flex items-center space-x-5"><div className="w-12 h-12 rounded-xl bg-[#F5F5F7] flex items-center justify-center"><Plus size={18} className="text-[#007AFF]"/></div><div><span className="font-bold text-[16px] block">{lang === 'id' ? 'Instal Aplikasi' : 'Install App'}</span><span className="text-[12px] text-[#86868B]">Add to Home Screen</span></div></div>
+                    <div className="flex items-center space-x-5"><div className="w-12 h-12 rounded-xl bg-[#F5F5F7] flex items-center justify-center"><Plus size={18} className="text-[#007AFF]"/></div><div><span className="font-bold text-[16px] block">{lang === 'id' ? 'Instal Aplikasi' : 'Install App'}</span><span className="text-[12px] text-[#86868B]">{lang === 'id' ? 'Tambahkan ke Layar Utama' : 'Add to Home Screen'}</span></div></div>
                     <ChevronRight size={18} className="text-[#D1D1D6]"/>
                   </div>
                 )}
