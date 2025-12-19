@@ -25,7 +25,7 @@ const translations = {
     cloudSync: "Cloud Sync", notifications: "Notifications", privacy: "Privacy",
     theme: "Theme", placeholderJournal: "Reflect on your day...",
     back: "Back", confirmDelete: "Delete this item permanently?", currency: "Rp",
-    update: "Update", cancel: "Cancel",
+    update: "Update", cancel: "Cancel", firstCreated: "Created on", lastUpdated: "Last saved",
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -46,7 +46,7 @@ const translations = {
     cloudSync: "Sinkronisasi Cloud", notifications: "Notifikasi", privacy: "Privasi",
     theme: "Tema", placeholderJournal: "Renungkan harimu...",
     back: "Kembali", confirmDelete: "Hapus item ini secara permanen?", currency: "Rp",
-    update: "Perbarui", cancel: "Batal",
+    update: "Perbarui", cancel: "Batal", firstCreated: "Dibuat pada", lastUpdated: "Terakhir disimpan",
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
@@ -86,15 +86,15 @@ const AuthScreen: React.FC<{ lang: Language }> = ({ lang }) => {
         <div className="flex flex-col items-center mb-10 text-center">
           <div className="w-16 h-16 bg-[#1D1D1F] rounded-2xl flex items-center justify-center text-white mb-6 shadow-sm"><FileText size={32} /></div>
           <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">Zenith</h1>
-          <p className="text-[#86868B] text-sm mt-1">{lang === 'id' ? 'Sederhanakan rutinitas harianmu.' : 'Simplify your daily routine.'}</p>
+          <p className="text-[#86868B] text-sm mt-1 font-medium">{lang === 'id' ? 'Sederhanakan rutinitas harianmu.' : 'Simplify your daily routine.'}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           {!isLogin && <input className="apple-input w-full" placeholder={lang === 'id' ? 'Nama Lengkap' : 'Full Name'} value={name} onChange={e => setName(e.target.value)} required />}
           <input className="apple-input w-full" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
           <input className="apple-input w-full" type="password" placeholder={lang === 'id' ? 'Kata Sandi' : 'Password'} value={password} onChange={e => setPassword(e.target.value)} required />
-          {error && <p className="text-red-500 text-[13px] text-center font-medium">{error}</p>}
+          {error && <p className="text-red-500 text-[13px] text-center font-medium mt-2">{error}</p>}
           <button type="submit" disabled={loading} className="apple-button w-full py-3.5 mt-6 disabled:opacity-50">
-            {loading ? '...' : isLogin ? (lang === 'id' ? 'Masuk' : 'Sign In') : (lang === 'id' ? 'Gabung' : 'Join')}
+            <span className="text-[15px]">{loading ? '...' : isLogin ? (lang === 'id' ? 'Masuk' : 'Sign In') : (lang === 'id' ? 'Gabung' : 'Join')}</span>
           </button>
         </form>
         <div className="mt-8 text-center">
@@ -194,103 +194,66 @@ const App: React.FC = () => {
     if (outcome === 'accepted') setInstallPrompt(null);
   };
 
-  // --- Wallet Actions (Add & Edit) ---
+  // --- Wallet Actions ---
   const handleSaveExpense = async () => {
     if (!newExpense.description || !newExpense.amount) return;
-    
-    const payload = {
-      description: newExpense.description,
-      amount: parseFloat(newExpense.amount),
-      category: newExpense.category,
-      user_id: currentUser.id
-    };
-
+    const payload = { description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, user_id: currentUser.id };
     if (editingExpenseId) {
       const { data, error } = await supabase.from('expenses').update(payload).eq('id', editingExpenseId).select();
-      if (!error && data) {
-        setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e));
-        setEditingExpenseId(null);
-        setNewExpense({ description: '', amount: '', category: 'Others' });
-      }
+      if (!error && data) { setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e)); setEditingExpenseId(null); setNewExpense({ description: '', amount: '', category: 'Others' }); }
     } else {
       const { data, error } = await supabase.from('expenses').insert([{ ...payload, date: new Date().toISOString() }]).select();
-      if (!error && data) {
-        setExpenses([data[0], ...expenses]);
-        setNewExpense({ description: '', amount: '', category: 'Others' });
-      }
+      if (!error && data) { setExpenses([data[0], ...expenses]); setNewExpense({ description: '', amount: '', category: 'Others' }); }
     }
   };
+  const deleteExpense = async (id: string) => { if (window.confirm(t.confirmDelete) && !(await supabase.from('expenses').delete().eq('id', id)).error) setExpenses(expenses.filter(x => x.id !== id)); };
 
-  const deleteExpense = async (id: string) => {
-    if (!window.confirm(t.confirmDelete)) return;
-    const { error } = await supabase.from('expenses').delete().eq('id', id);
-    if (!error) setExpenses(expenses.filter(x => x.id !== id));
-  };
-
-  // --- Habit Actions (Add & Edit) ---
+  // --- Habit Actions ---
   const handleSaveHabit = async () => {
     if(!newHabit.name) return;
-    
-    const payload = {
-      name: newHabit.name,
-      reminder_time: newHabit.time,
-      user_id: currentUser.id
-    };
-
+    const payload = { name: newHabit.name, reminder_time: newHabit.time, user_id: currentUser.id };
     if (editingHabitId) {
       const { data, error } = await supabase.from('habits').update(payload).eq('id', editingHabitId).select();
-      if (!error && data) {
-        setHabits(habits.map(h => h.id === editingHabitId ? data[0] : h));
-        setEditingHabitId(null);
-        setNewHabit({name:'', time:''});
-      }
+      if (!error && data) { setHabits(habits.map(h => h.id === editingHabitId ? data[0] : h)); setEditingHabitId(null); setNewHabit({name:'', time:''}); }
     } else {
       const { data, error } = await supabase.from('habits').insert([{ ...payload, streak: 0, completed_dates: [] }]).select();
-      if (!error && data) {
-        setHabits([data[0], ...habits]);
-        setNewHabit({name:'', time:''});
-      }
+      if (!error && data) { setHabits([data[0], ...habits]); setNewHabit({name:'', time:''}); }
     }
   };
-
   const toggleHabit = async (h: Habit) => {
     const today = new Date().toLocaleDateString();
-    const alreadyDone = h.completed_dates?.includes(today);
-    const updatedDates = alreadyDone ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today];
-    const { data, error } = await supabase.from('habits').update({ completed_dates: updatedDates, streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1 }).eq('id', h.id).select();
+    const updatedDates = h.completed_dates?.includes(today) ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today];
+    const { data, error } = await supabase.from('habits').update({ completed_dates: updatedDates, streak: h.completed_dates?.includes(today) ? Math.max(0, h.streak - 1) : h.streak + 1 }).eq('id', h.id).select();
     if (!error && data) setHabits(habits.map(item => item.id === h.id ? data[0] : item));
   };
-
-  const deleteHabit = async (id: string) => {
-    if (!window.confirm(t.confirmDelete)) return;
-    const { error } = await supabase.from('habits').delete().eq('id', id);
-    if (!error) setHabits(habits.filter(x => x.id !== id));
-  };
+  const deleteHabit = async (id: string) => { if (window.confirm(t.confirmDelete) && !(await supabase.from('habits').delete().eq('id', id)).error) setHabits(habits.filter(x => x.id !== id)); };
 
   // --- Note Actions ---
   const handleSaveNoteManual = async () => {
     if (!activeNote || !currentUser) return;
     setIsSaving(true);
-    const noteData = { title: activeNote.title || t.untitled, content: activeNote.content || '', user_id: currentUser.id, updated_at: new Date().toISOString() };
+    const now = new Date().toISOString();
+    // Jika note baru, set created_at. Supabase biasanya mengurus ini otomatis, tapi kita sertakan untuk keamanan UI.
+    const noteData = { 
+      title: activeNote.title || t.untitled, 
+      content: activeNote.content || '', 
+      user_id: currentUser.id, 
+      updated_at: now 
+    };
+
     const { data, error } = activeNote.id && activeNote.id.length > 15 
       ? await supabase.from('notes').update(noteData).eq('id', activeNote.id).select()
-      : await supabase.from('notes').insert([noteData]).select();
+      : await supabase.from('notes').insert([{...noteData, created_at: now}]).select();
+    
     if (!error && data) {
       setNotes(activeNote.id && activeNote.id.length > 15 ? notes.map(n => n.id === activeNote.id ? data[0] : n) : [data[0], ...notes]);
       setActiveNote(data[0]);
     }
     setIsSaving(false);
   };
+  const deleteNote = async (id: string) => { if(window.confirm(t.confirmDelete) && !(await supabase.from('notes').delete().eq('id', id)).error) { setNotes(notes.filter(n => n.id !== id)); setActiveNote(null); setIsMobileNoteEditing(false); } };
 
-  const deleteNote = async (id: string) => {
-    if(window.confirm(t.confirmDelete) && !(await supabase.from('notes').delete().eq('id', id)).error) {
-      setNotes(notes.filter(n => n.id !== id));
-      setActiveNote(null);
-      setIsMobileNoteEditing(false);
-    }
-  };
-
-  // UI Helpers
+  // --- UI Helpers ---
   const formatCurrency = (val: number) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val).replace('IDR', 'Rp');
   const getCategoryIcon = (cat: string) => {
     const icons: any = { Food: <Coffee size={16}/>, Transport: <Car size={16}/>, Shopping: <ShoppingBag size={16}/>, Bills: <CreditCard size={16}/>, Health: <Heart size={16}/>, Entertainment: <Gamepad2 size={16}/> };
@@ -302,7 +265,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-white">
-      {/* Sidebar */}
+      {/* Sidebar Navigation */}
       <aside className="hidden md:flex w-[260px] bg-white border-r border-[#F2F2F7] fixed h-full flex-col p-8 z-50">
         <div className="flex items-center space-x-3.5 mb-12 px-2">
           <div className="w-9 h-9 bg-[#1D1D1F] rounded-xl flex items-center justify-center text-white shadow-sm"><FileText size={20} /></div>
@@ -357,10 +320,10 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Finance Tab (Edit & Konfirmasi Hapus) */}
+        {/* Finance Tab */}
         {activeTab === 'finance' && (
           <div className="space-y-8 fade-in">
-            <div className="flex bg-[#F2F2F7] p-1 rounded-xl w-full max-w-sm mx-auto shadow-inner">
+            <div className="flex bg-[#F2F2F7] p-1 rounded-xl w-full max-sm mx-auto shadow-inner">
               {(['daily', 'weekly', 'monthly'] as const).map((f) => (
                 <button key={f} onClick={() => setFinanceFilter(f)} className={`flex-1 py-1.5 text-[13px] font-bold rounded-lg transition-all ${financeFilter === f ? 'bg-white text-[#007AFF] shadow-sm' : 'text-[#86868B]'}`}>{f}</button>
               ))}
@@ -368,9 +331,7 @@ const App: React.FC = () => {
 
             <div className="apple-card p-8 bg-[#007AFF] text-white border-none relative overflow-hidden">
                <TrendingDown className="absolute right-[-20px] bottom-[-20px] w-40 h-40 opacity-10 rotate-[-15deg]" />
-                <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-1">
-                Total {financeFilter === 'daily' ? t.today : financeFilter === 'weekly' ? t.lastSevenDays : t.thisMonth}
-              </p>
+               <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-1">Total {financeFilter === 'daily' ? t.today : financeFilter === 'weekly' ? t.lastSevenDays : t.thisMonth}</p>
                <h3 className="text-4xl font-extrabold">{formatCurrency(totalSpentFiltered)}</h3>
             </div>
 
@@ -407,7 +368,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Habits Tab (Edit & Konfirmasi Hapus) */}
+        {/* Habits Tab */}
         {activeTab === 'habits' && (
           <div className="space-y-8 fade-in">
             <div className={`apple-card p-8 flex flex-col md:flex-row gap-4 transition-all ${editingHabitId ? 'bg-amber-50 border-amber-200' : 'bg-[#F9F9FB] border-none'}`}>
@@ -437,20 +398,23 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Journal Tab */}
+        {/* Journal Tab (REVISI: INFO PEMBUATAN) */}
         {activeTab === 'notes' && (
           <div className="grid grid-cols-12 gap-0 md:gap-10 h-[calc(100vh-280px)] fade-in overflow-hidden">
             <div className={`col-span-12 md:col-span-4 flex flex-col space-y-4 overflow-y-auto pr-1 ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
               <button onClick={() => { setActiveNote({ title: '', content: '', user_id: currentUser.id } as any); setIsMobileNoteEditing(true); }} className="apple-button w-full py-3 mb-2 shadow-sm"><Plus size={18} className="mr-2 inline"/> {t.newEntry}</button>
               {notes.map(n => (
                 <div key={n.id} onClick={() => { setActiveNote(n); setIsMobileNoteEditing(true); }} className={`apple-card p-5 cursor-pointer border-none transition-all group ${activeNote?.id === n.id ? 'bg-[#F2F2F7]' : 'hover:bg-[#F9F9FB]'}`}>
-                  <h5 className="font-bold truncate">{n.title || t.untitled}</h5>
-                  <p className="text-[13px] text-[#86868B] line-clamp-2 mt-1">{n.content || "..."}</p>
+                  <div className="flex justify-between items-start mb-1">
+                    <h5 className="font-bold truncate flex-1">{n.title || t.untitled}</h5>
+                    <span className="text-[10px] font-bold text-[#86868B] uppercase ml-2">{new Date(n.created_at || n.updated_at).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })}</span>
+                  </div>
+                  <p className="text-[13px] text-[#86868B] line-clamp-2">{n.content || "..."}</p>
                 </div>
               ))}
             </div>
-            <div className={`col-span-12 md:col-span-8 flex-col h-full apple-card p-6 md:p-12 border-none bg-white relative ${isMobileNoteEditing ? 'flex' : 'hidden md:flex'}`}>
-               <div className="flex items-center justify-between mb-8">
+            <div className={`col-span-12 md:col-span-8 flex-col h-full apple-card p-6 md:p-12 border-none bg-white relative overflow-hidden ${isMobileNoteEditing ? 'flex' : 'hidden md:flex'}`}>
+               <div className="flex items-center justify-between mb-6">
                   <button onClick={() => setIsMobileNoteEditing(false)} className="md:hidden text-[#007AFF] font-bold flex items-center"><ArrowLeft size={20} className="mr-1" /> {t.back}</button>
                   <div className="flex items-center space-x-3 ml-auto">
                     {activeNote && (
@@ -458,13 +422,34 @@ const App: React.FC = () => {
                         <button onClick={handleSaveNoteManual} disabled={isSaving} className={`flex items-center px-5 py-2 rounded-full text-sm font-bold transition-all ${isSaving ? 'bg-gray-100 text-gray-400' : 'bg-[#007AFF] text-white hover:bg-[#0062CC]'}`}>
                           <Save size={16} className="mr-2"/> {isSaving ? '...' : t.saved}
                         </button>
-                        <button onClick={() => deleteNote(activeNote.id)} className="text-red-500 font-bold px-3 py-2 hover:bg-red-50 rounded-full transition-colors">{t.delete}</button>
+                        <button onClick={() => deleteNote(activeNote.id)} className="text-red-500 font-bold px-3 py-2">Delete</button>
                       </>
                     )}
                   </div>
                </div>
-               <input className="text-2xl md:text-4xl font-extrabold bg-transparent outline-none mb-6 w-full" placeholder={t.untitled} value={activeNote?.title || ''} onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} />
-               <textarea className="flex-1 w-full bg-transparent outline-none resize-none text-[17px] md:text-[20px] leading-relaxed" placeholder={t.placeholderJournal} value={activeNote?.content || ''} onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} />
+
+               {/* META INFO: INFO PEMBUATAN & WAKTU */}
+               {activeNote && (activeNote.created_at || activeNote.updated_at) && (
+                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-bold text-[#86868B] uppercase tracking-widest mb-6">
+                   <div className="flex items-center space-x-1.5 bg-[#F2F2F7] px-2.5 py-1 rounded-full">
+                     <Calendar size={12} />
+                     <span>{t.firstCreated}: {new Date(activeNote.created_at || activeNote.updated_at).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                   </div>
+                   <div className="flex items-center space-x-1.5 bg-[#F2F2F7] px-2.5 py-1 rounded-full">
+                     <Clock size={12} />
+                     <span>{new Date(activeNote.created_at || activeNote.updated_at).toLocaleTimeString(lang === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                   </div>
+                 </div>
+               )}
+
+               <input className="text-2xl md:text-4xl font-extrabold bg-transparent outline-none mb-6 w-full" placeholder={t.untitled} value={activeNote?.title || ''} 
+                onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} />
+               <textarea className="flex-1 w-full bg-transparent outline-none resize-none text-[17px] md:text-[20px] leading-relaxed" placeholder={t.placeholderJournal} value={activeNote?.content || ''} 
+                onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} />
+               
+               <div className="hidden md:flex mt-8 pt-6 border-t border-[#F2F2F7] justify-between items-center text-[10px] font-bold text-[#86868B] uppercase">
+                 <span className="flex items-center italic"><ShieldCheck size={14} className="mr-1 text-[#34C759]"/> {activeNote?.updated_at ? `${t.lastUpdated} ${new Date(activeNote.updated_at).toLocaleTimeString()}` : 'Syncing...'}</span>
+               </div>
             </div>
           </div>
         )}
@@ -484,7 +469,7 @@ const App: React.FC = () => {
                 </div>
                 {!isInstalled && (
                   <div className="p-6 flex items-center justify-between cursor-pointer hover:bg-[#F9F9FB]" onClick={handleInstallClick}>
-                    <div className="flex items-center space-x-5"><div className="w-12 h-12 rounded-xl bg-[#F5F5F7] flex items-center justify-center"><Plus size={18} className="text-[#007AFF]"/></div><div><span className="font-bold text-[16px] block">{lang === 'id' ? 'Instal Aplikasi' : 'Install App'}</span><span className="text-[12px] text-[#86868B]">{lang === 'id' ? 'Tambahkan ke Layar Utama' : 'Add to Home Screen'}</span></div></div>
+                    <div className="flex items-center space-x-5"><div className="w-12 h-12 rounded-xl bg-[#F5F5F7] flex items-center justify-center"><Plus size={18} className="text-[#007AFF]"/></div><div><span className="font-bold text-[16px] block">{lang === 'id' ? 'Instal Aplikasi' : 'Install App'}</span><span className="text-[12px] text-[#86868B]">Add to Home Screen</span></div></div>
                     <ChevronRight size={18} className="text-[#D1D1D6]"/>
                   </div>
                 )}
