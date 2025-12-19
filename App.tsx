@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Wallet, CheckCircle2, Plus, Trash2, ChevronRight, Pencil, Flame,
   Search, Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
   CreditCard, MoreHorizontal, Settings as SettingsIcon, ShieldCheck, Mail, Lock,
-  ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown, X
+  ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown
 } from 'lucide-react';
 import { Expense, Habit, Note, AppTab, Language } from './types';
 
@@ -12,10 +12,10 @@ import { Expense, Habit, Note, AppTab, Language } from './types';
 const translations = {
   en: {
     overview: "Overview", wallet: "Wallet", habits: "Habits", journal: "Journal",
-    lastSevenDays: "Last 7 Days", thisMonth: "This Month", today: "Today",
+    lastSevenDays: "weekly expense", thisMonth: "monthly expense", today: "daily expense",
     account: "Account", preferences: "Preferences", hello: "Hello",
     totalSpend: "Total Spend", bestStreak: "Best Streak", records: "Records",
-    recentActivity: "Recent activity", todaysGoals: "Today's Goals",
+    recentActivity: "Recent activity", todaysGoals: "in A day", financeFIlter: "weekly",
     manage: "Manage", viewAll: "View All", logTransaction: "Log Transaction",
     desc: "Description", amount: "Amount", category: "Category", add: "Add",
     habitsTitle: "Daily Goals", startTracking: "Start Tracking",
@@ -24,8 +24,7 @@ const translations = {
     delete: "Delete", signOut: "Sign Out", language: "Language",
     cloudSync: "Cloud Sync", notifications: "Notifications", privacy: "Privacy",
     theme: "Theme", placeholderJournal: "Reflect on your day...",
-    back: "Back", confirmDelete: "Delete this item permanently?", currency: "Rp",
-    update: "Update", cancel: "Cancel", firstCreated: "Created on", lastUpdated: "Last saved",
+    back: "Back", confirmDelete: "Delete this entry?", currency: "Rp",
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -45,8 +44,7 @@ const translations = {
     delete: "Hapus", signOut: "Keluar", language: "Bahasa",
     cloudSync: "Sinkronisasi Cloud", notifications: "Notifikasi", privacy: "Privasi",
     theme: "Tema", placeholderJournal: "Renungkan harimu...",
-    back: "Kembali", confirmDelete: "Hapus item ini secara permanen?", currency: "Rp",
-    update: "Perbarui", cancel: "Batal", firstCreated: "Dibuat pada", lastUpdated: "Terakhir disimpan",
+    back: "Kembali", confirmDelete: "Hapus entri ini?", currency: "Rp",
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
@@ -86,15 +84,15 @@ const AuthScreen: React.FC<{ lang: Language }> = ({ lang }) => {
         <div className="flex flex-col items-center mb-10 text-center">
           <div className="w-16 h-16 bg-[#1D1D1F] rounded-2xl flex items-center justify-center text-white mb-6 shadow-sm"><FileText size={32} /></div>
           <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">Zenith</h1>
-          <p className="text-[#86868B] text-sm mt-1 font-medium">{lang === 'id' ? 'Sederhanakan rutinitas harianmu.' : 'Simplify your daily routine.'}</p>
+          <p className="text-[#86868B] text-sm mt-1">{lang === 'id' ? 'Sederhanakan rutinitas harianmu.' : 'Simplify your daily routine.'}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           {!isLogin && <input className="apple-input w-full" placeholder={lang === 'id' ? 'Nama Lengkap' : 'Full Name'} value={name} onChange={e => setName(e.target.value)} required />}
           <input className="apple-input w-full" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
           <input className="apple-input w-full" type="password" placeholder={lang === 'id' ? 'Kata Sandi' : 'Password'} value={password} onChange={e => setPassword(e.target.value)} required />
-          {error && <p className="text-red-500 text-[13px] text-center font-medium mt-2">{error}</p>}
+          {error && <p className="text-red-500 text-[13px] text-center font-medium">{error}</p>}
           <button type="submit" disabled={loading} className="apple-button w-full py-3.5 mt-6 disabled:opacity-50">
-            <span className="text-[15px]">{loading ? '...' : isLogin ? (lang === 'id' ? 'Masuk' : 'Sign In') : (lang === 'id' ? 'Gabung' : 'Join')}</span>
+            {loading ? '...' : isLogin ? (lang === 'id' ? 'Masuk' : 'Sign In') : (lang === 'id' ? 'Gabung' : 'Join')}
           </button>
         </form>
         <div className="mt-8 text-center">
@@ -124,32 +122,37 @@ const App: React.FC = () => {
   // Filter State
   const [financeFilter, setFinanceFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
-  // UI/Editing States
+  // UI States
   const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Others' });
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [newHabit, setNewHabit] = useState({ name: '', time: '' });
-  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [isMobileNoteEditing, setIsMobileNoteEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const t = translations[lang];
 
-  // --- Filter Logic ---
+  // --- 1. Logika Filter Berbasis Periode ---
   const filteredExpenses = useMemo(() => {
     const now = new Date();
     return expenses.filter(e => {
       const itemDate = new Date(e.date);
-      if (financeFilter === 'daily') return itemDate.toDateString() === now.toDateString();
-      if (financeFilter === 'weekly') return itemDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+      if (financeFilter === 'daily') {
+        return itemDate.toDateString() === now.toDateString();
+      } else if (financeFilter === 'weekly') {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return itemDate >= oneWeekAgo;
+      } else {
+        // Monthly
+        return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+      }
     });
   }, [expenses, financeFilter]);
 
-  const totalSpentFiltered = useMemo(() => filteredExpenses.reduce((a, b) => a + b.amount, 0), [filteredExpenses]);
-  const totalSpentGlobal = useMemo(() => expenses.reduce((a, b) => a + b.amount, 0), [expenses]);
+  const totalSpentFiltered = useMemo(() => 
+    filteredExpenses.reduce((a, b) => a + b.amount, 0), 
+  [filteredExpenses]);
 
-  // --- Auth Lifecycle ---
+  // --- Auth & Data Lifecycle ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setCurrentUser(session?.user ?? null);
@@ -194,57 +197,40 @@ const App: React.FC = () => {
     if (outcome === 'accepted') setInstallPrompt(null);
   };
 
-  // --- Wallet Actions ---
-  const handleSaveExpense = async () => {
-    if (!newExpense.description || !newExpense.amount) return;
-    const payload = { description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, user_id: currentUser.id };
-    if (editingExpenseId) {
-      const { data, error } = await supabase.from('expenses').update(payload).eq('id', editingExpenseId).select();
-      if (!error && data) { setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e)); setEditingExpenseId(null); setNewExpense({ description: '', amount: '', category: 'Others' }); }
-    } else {
-      const { data, error } = await supabase.from('expenses').insert([{ ...payload, date: new Date().toISOString() }]).select();
+  // CRUD Actions (Sama seperti sebelumnya)
+  const handleAddExpense = async () => {
+    if (newExpense.description && newExpense.amount) {
+      const { data, error } = await supabase.from('expenses').insert([{
+        description: newExpense.description, amount: parseFloat(newExpense.amount),
+        category: newExpense.category, user_id: currentUser.id, date: new Date().toISOString()
+      }]).select();
       if (!error && data) { setExpenses([data[0], ...expenses]); setNewExpense({ description: '', amount: '', category: 'Others' }); }
     }
   };
-  const deleteExpense = async (id: string) => { if (window.confirm(t.confirmDelete) && !(await supabase.from('expenses').delete().eq('id', id)).error) setExpenses(expenses.filter(x => x.id !== id)); };
+  const deleteExpense = async (id: string) => { if (!(await supabase.from('expenses').delete().eq('id', id)).error) setExpenses(expenses.filter(x => x.id !== id)); };
 
-  // --- Habit Actions ---
-  const handleSaveHabit = async () => {
-    if(!newHabit.name) return;
-    const payload = { name: newHabit.name, reminder_time: newHabit.time, user_id: currentUser.id };
-    if (editingHabitId) {
-      const { data, error } = await supabase.from('habits').update(payload).eq('id', editingHabitId).select();
-      if (!error && data) { setHabits(habits.map(h => h.id === editingHabitId ? data[0] : h)); setEditingHabitId(null); setNewHabit({name:'', time:''}); }
-    } else {
-      const { data, error } = await supabase.from('habits').insert([{ ...payload, streak: 0, completed_dates: [] }]).select();
+  const handleAddHabit = async () => {
+    if(newHabit.name) {
+      const { data, error } = await supabase.from('habits').insert([{ name: newHabit.name, streak: 0, completed_dates: [], reminder_time: newHabit.time, user_id: currentUser.id }]).select();
       if (!error && data) { setHabits([data[0], ...habits]); setNewHabit({name:'', time:''}); }
     }
   };
   const toggleHabit = async (h: Habit) => {
     const today = new Date().toLocaleDateString();
-    const updatedDates = h.completed_dates?.includes(today) ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today];
-    const { data, error } = await supabase.from('habits').update({ completed_dates: updatedDates, streak: h.completed_dates?.includes(today) ? Math.max(0, h.streak - 1) : h.streak + 1 }).eq('id', h.id).select();
+    const alreadyDone = h.completed_dates?.includes(today);
+    const updatedDates = alreadyDone ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today];
+    const { data, error } = await supabase.from('habits').update({ completed_dates: updatedDates, streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1 }).eq('id', h.id).select();
     if (!error && data) setHabits(habits.map(item => item.id === h.id ? data[0] : item));
   };
-  const deleteHabit = async (id: string) => { if (window.confirm(t.confirmDelete) && !(await supabase.from('habits').delete().eq('id', id)).error) setHabits(habits.filter(x => x.id !== id)); };
+  const deleteHabit = async (id: string) => { if (!(await supabase.from('habits').delete().eq('id', id)).error) setHabits(habits.filter(x => x.id !== id)); };
 
-  // --- Note Actions ---
   const handleSaveNoteManual = async () => {
     if (!activeNote || !currentUser) return;
     setIsSaving(true);
-    const now = new Date().toISOString();
-    // Jika note baru, set created_at. Supabase biasanya mengurus ini otomatis, tapi kita sertakan untuk keamanan UI.
-    const noteData = { 
-      title: activeNote.title || t.untitled, 
-      content: activeNote.content || '', 
-      user_id: currentUser.id, 
-      updated_at: now 
-    };
-
+    const noteData = { title: activeNote.title || t.untitled, content: activeNote.content || '', user_id: currentUser.id, updated_at: new Date().toISOString() };
     const { data, error } = activeNote.id && activeNote.id.length > 15 
       ? await supabase.from('notes').update(noteData).eq('id', activeNote.id).select()
-      : await supabase.from('notes').insert([{...noteData, created_at: now}]).select();
-    
+      : await supabase.from('notes').insert([noteData]).select();
     if (!error && data) {
       setNotes(activeNote.id && activeNote.id.length > 15 ? notes.map(n => n.id === activeNote.id ? data[0] : n) : [data[0], ...notes]);
       setActiveNote(data[0]);
@@ -253,7 +239,8 @@ const App: React.FC = () => {
   };
   const deleteNote = async (id: string) => { if(window.confirm(t.confirmDelete) && !(await supabase.from('notes').delete().eq('id', id)).error) { setNotes(notes.filter(n => n.id !== id)); setActiveNote(null); setIsMobileNoteEditing(false); } };
 
-  // --- UI Helpers ---
+  // UI Helpers
+  const totalSpentGlobal = useMemo(() => expenses.reduce((a, b) => a + b.amount, 0), [expenses]);
   const formatCurrency = (val: number) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val).replace('IDR', 'Rp');
   const getCategoryIcon = (cat: string) => {
     const icons: any = { Food: <Coffee size={16}/>, Transport: <Car size={16}/>, Shopping: <ShoppingBag size={16}/>, Bills: <CreditCard size={16}/>, Health: <Heart size={16}/>, Entertainment: <Gamepad2 size={16}/> };
@@ -265,7 +252,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-white">
-      {/* Sidebar Navigation */}
+      {/* Sidebar */}
       <aside className="hidden md:flex w-[260px] bg-white border-r border-[#F2F2F7] fixed h-full flex-col p-8 z-50">
         <div className="flex items-center space-x-3.5 mb-12 px-2">
           <div className="w-9 h-9 bg-[#1D1D1F] rounded-xl flex items-center justify-center text-white shadow-sm"><FileText size={20} /></div>
@@ -292,7 +279,7 @@ const App: React.FC = () => {
       <main className="flex-1 md:ml-[260px] pb-24 md:pb-12 pt-safe px-6 md:px-16 w-full max-w-[1280px]">
         <header className={`py-10 md:py-20 flex justify-between items-center ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#1D1D1F] tracking-tight capitalize">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#1D1D1F] tracking-tight">
               {activeTab === 'dashboard' && `${t.hello}, ${currentUser.user_metadata?.full_name?.split(' ')[0] || 'User'}`}
               {activeTab === 'finance' && t.wallet} {activeTab === 'habits' && t.habits}
               {activeTab === 'notes' && t.journal} {activeTab === 'settings' && t.preferences}
@@ -301,7 +288,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* Dashboard Tab */}
+        {/* Dashboard Content */}
         {activeTab === 'dashboard' && (
           <div className="space-y-12 fade-in">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -309,6 +296,7 @@ const App: React.FC = () => {
               <div className="apple-card p-8"><div className="w-10 h-10 rounded-xl bg-[#F5F5F7] flex items-center justify-center text-[#FF9500] mb-6"><Flame size={20}/></div><p className="text-[11px] font-bold text-[#86868B] uppercase mb-1.5">{t.bestStreak}</p><h3 className="text-3xl font-bold">{habits.length > 0 ? Math.max(...habits.map(h => h.streak), 0) : 0} <span className="text-base text-[#86868B]">Days</span></h3></div>
               <div className="apple-card p-8"><div className="w-10 h-10 rounded-xl bg-[#F5F5F7] flex items-center justify-center text-[#5856D6] mb-6"><Pencil size={20}/></div><p className="text-[11px] font-bold text-[#86868B] uppercase mb-1.5">{t.records}</p><h3 className="text-3xl font-bold">{notes.length}</h3></div>
             </div>
+            {/* Aktivitas Terbaru (Global) */}
             <div className="apple-card p-8"><h4 className="font-bold text-xl mb-8">{t.recentActivity}</h4>
                 {expenses.slice(0, 4).map(e => (
                   <div key={e.id} className="flex justify-between items-center mb-6 last:mb-0">
@@ -323,61 +311,60 @@ const App: React.FC = () => {
         {/* Finance Tab */}
         {activeTab === 'finance' && (
           <div className="space-y-8 fade-in">
-            <div className="flex bg-[#F2F2F7] p-1 rounded-xl w-full max-sm mx-auto shadow-inner">
+            {/* Segmented Control */}
+            <div className="flex bg-[#F2F2F7] p-1 rounded-xl w-full max-w-sm mx-auto shadow-inner">
               {(['daily', 'weekly', 'monthly'] as const).map((f) => (
-                <button key={f} onClick={() => setFinanceFilter(f)} className={`flex-1 py-1.5 text-[13px] font-bold rounded-lg transition-all ${financeFilter === f ? 'bg-white text-[#007AFF] shadow-sm' : 'text-[#86868B]'}`}>{f}</button>
+                <button
+                  key={f}
+                  onClick={() => setFinanceFilter(f)}
+                  className={`flex-1 py-1.5 text-[13px] font-bold rounded-lg transition-all ${
+                    financeFilter === f ? 'bg-white text-[#007AFF] shadow-sm' : 'text-[#86868B]'
+                  }`}
+                >
+                  {f === 'daily' ? (lang === 'id' ? 'Hari' : 'Daily') : f === 'weekly' ? (lang === 'id' ? 'Minggu' : 'Weekly') : (lang === 'id' ? 'Bulan' : 'Monthly')}
+                </button>
               ))}
             </div>
 
+            {/* Filter Summary */}
             <div className="apple-card p-8 bg-[#007AFF] text-white border-none relative overflow-hidden">
                <TrendingDown className="absolute right-[-20px] bottom-[-20px] w-40 h-40 opacity-10 rotate-[-15deg]" />
-               <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-1">Total {financeFilter === 'daily' ? t.today : financeFilter === 'weekly' ? t.lastSevenDays : t.thisMonth}</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-1">
+                Total {
+                  financeFilter === 'daily' ? t.today : 
+                  financeFilter === 'weekly' ? t.lastSevenDays : 
+                  t.thisMonth
+                }
+              </p>
                <h3 className="text-4xl font-extrabold">{formatCurrency(totalSpentFiltered)}</h3>
             </div>
 
-            <div className={`apple-card p-8 transition-all ${editingExpenseId ? 'bg-amber-50 border-amber-200' : 'bg-[#F9F9FB] border-none'}`}>
-               <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-bold text-lg">{editingExpenseId ? t.update : t.logTransaction}</h4>
-                  {editingExpenseId && <button onClick={() => {setEditingExpenseId(null); setNewExpense({description:'', amount:'', category:'Others'})}} className="text-[#86868B]"><X size={20}/></button>}
-               </div>
-               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                 <input className="md:col-span-5 apple-input" placeholder={t.desc} value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})}/>
-                 <input className="md:col-span-3 apple-input" type="number" placeholder="0" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})}/>
-                 <select className="md:col-span-3 apple-input bg-white" value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
-                 <button onClick={handleSaveExpense} className={`md:col-span-1 apple-button h-11 ${editingExpenseId ? 'bg-amber-500' : ''}`}>{editingExpenseId ? <Save size={20}/> : <Plus size={20}/>}</button>
-               </div>
-            </div>
+            <div className="apple-card p-8 bg-[#F9F9FB] border-none"><div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <input className="md:col-span-5 apple-input" placeholder={t.desc} value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})}/>
+              <input className="md:col-span-3 apple-input" type="number" placeholder="0" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})}/>
+              <select className="md:col-span-3 apple-input bg-white" value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
+              <button onClick={handleAddExpense} className="md:col-span-1 apple-button h-11"><Plus size={20}/></button>
+            </div></div>
 
             <div className="apple-card overflow-hidden divide-y divide-[#F2F2F7]">
               {filteredExpenses.map(e => (
                 <div key={e.id} className="p-5 flex items-center group hover:bg-[#F9F9FB]">
-                  <div className="flex-1 flex items-center space-x-4">
-                    <div className="w-11 h-11 rounded-xl bg-[#F5F5F7] flex items-center justify-center">{getCategoryIcon(e.category)}</div>
-                    <div><p className="font-bold">{e.description}</p><p className="text-[12px] text-[#86868B]">{t.categories[e.category]} • {new Date(e.date).toLocaleDateString()}</p></div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                     <p className="font-bold">-{formatCurrency(e.amount)}</p>
-                     <div className="flex opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => {setEditingExpenseId(e.id); setNewExpense({description:e.description, amount:e.amount.toString(), category:e.category})}} className="p-2 text-[#007AFF] hover:bg-blue-50 rounded-lg mr-1"><Pencil size={18}/></button>
-                        <button onClick={() => deleteExpense(e.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
-                     </div>
-                  </div>
+                  <div className="flex-1 flex items-center space-x-4"><div className="w-11 h-11 rounded-xl bg-[#F5F5F7] flex items-center justify-center">{getCategoryIcon(e.category)}</div><div><p className="font-bold">{e.description}</p><p className="text-[12px] text-[#86868B]">{t.categories[e.category]} • {new Date(e.date).toLocaleDateString()}</p></div></div>
+                  <div className="flex items-center space-x-6"><p className="font-bold">-{formatCurrency(e.amount)}</p><button onClick={() => deleteExpense(e.id)} className="text-[#D1D1D6] hover:text-red-500 opacity-0 group-hover:opacity-100 p-2"><Trash2 size={18}/></button></div>
                 </div>
               ))}
+              {filteredExpenses.length === 0 && <EmptyState message={lang === 'id' ? 'Catatan periode ini kosong.' : 'No records for this period.'} />}
             </div>
           </div>
         )}
 
-        {/* Habits Tab */}
+        {/* Habits Tab (Tetap Sama) */}
         {activeTab === 'habits' && (
           <div className="space-y-8 fade-in">
-            <div className={`apple-card p-8 flex flex-col md:flex-row gap-4 transition-all ${editingHabitId ? 'bg-amber-50 border-amber-200' : 'bg-[#F9F9FB] border-none'}`}>
+            <div className="apple-card p-8 bg-[#F9F9FB] border-none flex flex-col md:flex-row gap-4">
               <input className="apple-input flex-1" placeholder={t.habitsTitle} value={newHabit.name} onChange={e => setNewHabit({...newHabit, name: e.target.value})}/>
               <input type="time" className="apple-input md:w-40 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
-              <div className="flex gap-2">
-                <button onClick={handleSaveHabit} className="apple-button px-8 h-12 flex-1">{editingHabitId ? t.update : t.add}</button>
-                {editingHabitId && <button onClick={() => {setEditingHabitId(null); setNewHabit({name:'', time:''})}} className="apple-button bg-gray-200 text-gray-700 px-4 h-12"><X/></button>}
-              </div>
+              <button onClick={handleAddHabit} className="apple-button px-8 h-12">{t.startTracking}</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {habits.map(h => {
@@ -388,67 +375,45 @@ const App: React.FC = () => {
                       <button onClick={() => toggleHabit(h)} className={`w-11 h-11 rounded-full border-2 flex items-center justify-center ${done ? 'bg-[#34C759] border-[#34C759] text-white' : 'border-[#D1D1D6] hover:border-[#34C759]'}`}><CheckCircle2 size={24}/></button>
                       <div><h4 className={`text-[17px] font-bold ${done ? 'text-[#86868B] line-through' : ''}`}>{h.name}</h4><div className="flex items-center space-x-4 text-[12px] font-bold uppercase mt-1"><span className="text-[#FF9500] flex items-center"><Flame size={14} className="mr-1"/> {h.streak} Streak</span></div></div>
                     </div>
-                    <div className="flex opacity-0 group-hover:opacity-100 transition-all">
-                      <button onClick={() => {setEditingHabitId(h.id); setNewHabit({name:h.name, time:h.reminder_time || ''})}} className="p-2 text-[#007AFF] hover:bg-blue-50 rounded-lg mr-1"><Pencil size={18}/></button>
-                      <button onClick={() => deleteHabit(h.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
-                    </div>
+                    <button onClick={() => deleteHabit(h.id)} className="text-[#D1D1D6] hover:text-red-500 opacity-0 group-hover:opacity-100 p-2"><Trash2 size={18}/></button>
                   </div>
               )})}
             </div>
           </div>
         )}
 
-        {/* Journal Tab (REVISI: INFO PEMBUATAN) */}
+        {/* Journal Tab (Save Manual) */}
         {activeTab === 'notes' && (
           <div className="grid grid-cols-12 gap-0 md:gap-10 h-[calc(100vh-280px)] fade-in overflow-hidden">
             <div className={`col-span-12 md:col-span-4 flex flex-col space-y-4 overflow-y-auto pr-1 ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
               <button onClick={() => { setActiveNote({ title: '', content: '', user_id: currentUser.id } as any); setIsMobileNoteEditing(true); }} className="apple-button w-full py-3 mb-2 shadow-sm"><Plus size={18} className="mr-2 inline"/> {t.newEntry}</button>
               {notes.map(n => (
-                <div key={n.id} onClick={() => { setActiveNote(n); setIsMobileNoteEditing(true); }} className={`apple-card p-5 cursor-pointer border-none transition-all group ${activeNote?.id === n.id ? 'bg-[#F2F2F7]' : 'hover:bg-[#F9F9FB]'}`}>
-                  <div className="flex justify-between items-start mb-1">
-                    <h5 className="font-bold truncate flex-1">{n.title || t.untitled}</h5>
-                    <span className="text-[10px] font-bold text-[#86868B] uppercase ml-2">{new Date(n.created_at || n.updated_at).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })}</span>
-                  </div>
-                  <p className="text-[13px] text-[#86868B] line-clamp-2">{n.content || "..."}</p>
+                <div key={n.id} onClick={() => { setActiveNote(n); setIsMobileNoteEditing(true); }} className={`apple-card p-5 cursor-pointer border-none transition-all ${activeNote?.id === n.id ? 'bg-[#F2F2F7]' : 'hover:bg-[#F9F9FB]'}`}>
+                  <h5 className="font-bold truncate">{n.title || t.untitled}</h5>
+                  <p className="text-[13px] text-[#86868B] line-clamp-2 mt-1">{n.content || "..."}</p>
                 </div>
               ))}
             </div>
-            <div className={`col-span-12 md:col-span-8 flex-col h-full apple-card p-6 md:p-12 border-none bg-white relative overflow-hidden ${isMobileNoteEditing ? 'flex' : 'hidden md:flex'}`}>
-               <div className="flex items-center justify-between mb-6">
+            <div className={`col-span-12 md:col-span-8 flex-col h-full apple-card p-6 md:p-12 border-none bg-white relative ${isMobileNoteEditing ? 'flex' : 'hidden md:flex'}`}>
+               <div className="flex items-center justify-between mb-8">
                   <button onClick={() => setIsMobileNoteEditing(false)} className="md:hidden text-[#007AFF] font-bold flex items-center"><ArrowLeft size={20} className="mr-1" /> {t.back}</button>
                   <div className="flex items-center space-x-3 ml-auto">
                     {activeNote && (
                       <>
                         <button onClick={handleSaveNoteManual} disabled={isSaving} className={`flex items-center px-5 py-2 rounded-full text-sm font-bold transition-all ${isSaving ? 'bg-gray-100 text-gray-400' : 'bg-[#007AFF] text-white hover:bg-[#0062CC]'}`}>
-                          <Save size={16} className="mr-2"/> {isSaving ? '...' : t.saved}
+                          <Save size={16} className="mr-2"/> {isSaving ? '...' : 'Save'}
                         </button>
                         <button onClick={() => deleteNote(activeNote.id)} className="text-red-500 font-bold px-3 py-2">Delete</button>
                       </>
                     )}
                   </div>
                </div>
-
-               {/* META INFO: INFO PEMBUATAN & WAKTU */}
-               {activeNote && (activeNote.created_at || activeNote.updated_at) && (
-                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-bold text-[#86868B] uppercase tracking-widest mb-6">
-                   <div className="flex items-center space-x-1.5 bg-[#F2F2F7] px-2.5 py-1 rounded-full">
-                     <Calendar size={12} />
-                     <span>{t.firstCreated}: {new Date(activeNote.created_at || activeNote.updated_at).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                   </div>
-                   <div className="flex items-center space-x-1.5 bg-[#F2F2F7] px-2.5 py-1 rounded-full">
-                     <Clock size={12} />
-                     <span>{new Date(activeNote.created_at || activeNote.updated_at).toLocaleTimeString(lang === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                   </div>
-                 </div>
-               )}
-
                <input className="text-2xl md:text-4xl font-extrabold bg-transparent outline-none mb-6 w-full" placeholder={t.untitled} value={activeNote?.title || ''} 
                 onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} />
-               <textarea className="flex-1 w-full bg-transparent outline-none resize-none text-[17px] md:text-[20px] leading-relaxed" placeholder={t.placeholderJournal} value={activeNote?.content || ''} 
+               <textarea className="flex-1 w-full bg-transparent outline-none resize-none text-[17px] md:text-[20px]" placeholder={t.placeholderJournal} value={activeNote?.content || ''} 
                 onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} />
-               
-               <div className="hidden md:flex mt-8 pt-6 border-t border-[#F2F2F7] justify-between items-center text-[10px] font-bold text-[#86868B] uppercase">
-                 <span className="flex items-center italic"><ShieldCheck size={14} className="mr-1 text-[#34C759]"/> {activeNote?.updated_at ? `${t.lastUpdated} ${new Date(activeNote.updated_at).toLocaleTimeString()}` : 'Syncing...'}</span>
+               <div className="hidden md:flex mt-8 pt-6 border-t border-[#F2F2F7] text-[11px] font-bold text-[#86868B] uppercase tracking-widest">
+                 <span className="flex items-center"><ShieldCheck size={14} className="mr-1"/> Sync Active</span>
                </div>
             </div>
           </div>
