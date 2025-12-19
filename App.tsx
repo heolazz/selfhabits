@@ -5,7 +5,7 @@ import {
   Search, Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
   CreditCard, MoreHorizontal, Settings as SettingsIcon, ShieldCheck, Mail, Lock,
   ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown,
-  X, Check, CalendarDays
+  X, Check, CalendarDays, MoreVertical
 } from 'lucide-react';
 import { Expense, Habit, Note, AppTab, Language } from './types';
 
@@ -19,7 +19,7 @@ const translations = {
     recentActivity: "Recent activity", todaysGoals: "in A day", financeFIlter: "weekly",
     manage: "Manage", viewAll: "View All", logTransaction: "Log Transaction",
     desc: "Description", amount: "Amount", category: "Category", add: "Add",
-    habitsTitle: "Daily Goals", startTracking: "Start Tracking",
+    habitsTitle: "Habit Name", startTracking: "Add Habit",
     myJournal: "My Journal", newEntry: "New Entry", untitled: "Untitled Entry",
     beginThoughts: "Start writing...", words: "Words", saved: "Saved",
     delete: "Delete", signOut: "Sign Out", language: "Language",
@@ -27,6 +27,7 @@ const translations = {
     theme: "Theme", placeholderJournal: "Reflect on your day, ideas, or dreams...",
     back: "Back", confirmDelete: "Delete this entry?", currency: "Rp",
     update: "Update", cancel: "Cancel", created: "Created", edited: "Edited",
+    streak: "Streak", time: "Time",
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -40,7 +41,7 @@ const translations = {
     recentActivity: "Aktivitas Terbaru", todaysGoals: "Target Hari Ini",
     manage: "Atur", viewAll: "Lihat Semua", logTransaction: "Catat Transaksi",
     desc: "Deskripsi", amount: "Jumlah", category: "Kategori", add: "Tambah",
-    habitsTitle: "Target Harian", startTracking: "Mulai Lacak",
+    habitsTitle: "Nama Kebiasaan", startTracking: "Tambah Kebiasaan",
     myJournal: "Jurnal Saya", newEntry: "Catatan Baru", untitled: "Judul Kosong",
     beginThoughts: "Mulai menulis...", words: "Kata", saved: "Tersimpan",
     delete: "Hapus", signOut: "Keluar", language: "Bahasa",
@@ -48,6 +49,7 @@ const translations = {
     theme: "Tema", placeholderJournal: "Renungkan harimu, ide, atau mimpimu...",
     back: "Kembali", confirmDelete: "Hapus entri ini?", currency: "Rp",
     update: "Perbarui", cancel: "Batal", created: "Dibuat", edited: "Diedit",
+    streak: "Streak", time: "Waktu",
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
@@ -138,6 +140,34 @@ const App: React.FC = () => {
 
   const t = translations[lang];
 
+  // --- Helper Functions ---
+  const getLast7Days = () => {
+    const dates = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      dates.push(d);
+    }
+    return dates;
+  };
+  const last7Days = useMemo(() => getLast7Days(), []);
+
+  const formatDateTime = (isoString: string) => {
+    if (!isoString) return '-';
+    const date = new Date(isoString);
+    return date.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  };
+
+  const formatShortDate = (isoString: string) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', {
+      day: 'numeric', month: 'short'
+    });
+  };
+
   // --- Filter Logic ---
   const filteredExpenses = useMemo(() => {
     const now = new Date();
@@ -178,17 +208,11 @@ const App: React.FC = () => {
 
   const fetchData = async () => {
     if (!currentUser) return;
-    
-    // Updated Sorting Logic
     const [exp, hab, not] = await Promise.all([
-      // Expenses: Sort by date (transaction date)
       supabase.from('expenses').select('*').order('date', { ascending: false }),
-      // Habits: Sort by created_at (Newest first)
       supabase.from('habits').select('*').order('created_at', { ascending: false }), 
-      // Notes: Sort by updated_at (Last modified first)
       supabase.from('notes').select('*').order('updated_at', { ascending: false })
     ]);
-    
     if (exp.data) setExpenses(exp.data);
     if (hab.data) setHabits(hab.data);
     if (not.data) setNotes(not.data);
@@ -207,23 +231,6 @@ const App: React.FC = () => {
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') setInstallPrompt(null);
-  };
-
-  // --- HELPER FORMAT DATE ---
-  const formatDateTime = (isoString: string) => {
-    if (!isoString) return '-';
-    const date = new Date(isoString);
-    return date.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', {
-      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-  };
-
-  const formatShortDate = (isoString: string) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', {
-      day: 'numeric', month: 'short'
-    });
   };
 
   // --- EXPENSE CRUD ---
@@ -330,11 +337,10 @@ const App: React.FC = () => {
       }
   };
 
-  // --- Note CRUD (Manual) ---
+  // --- Note CRUD ---
   const handleSaveNoteManual = async () => {
     if (!activeNote || !currentUser) return;
     setIsSaving(true);
-    // Note: created_at is handled by Supabase default now() on insert
     const noteData = { 
         title: activeNote.title || t.untitled, 
         content: activeNote.content || '', 
@@ -496,36 +502,71 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Habits Tab */}
+        {/* Habits Tab (REDESIGNED) */}
         {activeTab === 'habits' && (
           <div className="space-y-8 fade-in">
             {/* Input / Edit Form Habits */}
-            <div className={`apple-card p-8 border-none flex flex-col md:flex-row gap-4 transition-colors duration-300 ${editingHabitId ? 'bg-[#FFF8E6]' : 'bg-[#F9F9FB]'}`}>
-              <div className="flex-1 flex gap-4">
+            <div className={`apple-card p-6 border-none flex flex-col md:flex-row gap-4 transition-colors duration-300 ${editingHabitId ? 'bg-[#FFF8E6]' : 'bg-[#F9F9FB]'}`}>
+              <div className="flex-1 flex gap-3">
                   <input className="apple-input flex-1 bg-white" placeholder={t.habitsTitle} value={newHabit.name} onChange={e => setNewHabit({...newHabit, name: e.target.value})}/>
-                  <input type="time" className="apple-input md:w-40 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
+                  <input type="time" className="apple-input md:w-32 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
               </div>
               
               {editingHabitId ? (
                    <div className="flex space-x-2">
-                       <button onClick={handleAddHabit} className="apple-button px-6 h-12 bg-[#34C759] hover:bg-[#2DA84E]">{t.update}</button>
-                       <button onClick={cancelEditHabit} className="apple-button px-4 h-12 bg-[#86868B] hover:bg-[#636366]">{t.cancel}</button>
+                       <button onClick={handleAddHabit} className="apple-button px-5 h-12 bg-[#34C759] hover:bg-[#2DA84E] font-semibold text-sm">{t.update}</button>
+                       <button onClick={cancelEditHabit} className="apple-button px-4 h-12 bg-[#86868B] hover:bg-[#636366] text-white"><X size={20}/></button>
                    </div>
               ) : (
-                  <button onClick={handleAddHabit} className="apple-button px-8 h-12">{t.startTracking}</button>
+                  <button onClick={handleAddHabit} className="apple-button px-6 h-12 font-semibold text-sm whitespace-nowrap">{t.startTracking}</button>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4">
               {habits.map(h => {
-                const done = h.completed_dates?.includes(new Date().toLocaleDateString());
+                const today = new Date().toLocaleDateString();
+                const done = h.completed_dates?.includes(today);
                 return (
-                  <div key={h.id} className={`apple-card p-6 flex items-center justify-between group transition-all ${editingHabitId === h.id ? 'ring-2 ring-[#007AFF]' : ''}`}>
-                    <div className="flex items-center space-x-5">
-                      <button onClick={() => toggleHabit(h)} className={`w-11 h-11 rounded-full border-2 flex items-center justify-center ${done ? 'bg-[#34C759] border-[#34C759] text-white' : 'border-[#D1D1D6] hover:border-[#34C759]'}`}><CheckCircle2 size={24}/></button>
-                      <div><h4 className={`text-[17px] font-bold ${done ? 'text-[#86868B] line-through' : ''}`}>{h.name}</h4><div className="flex items-center space-x-4 text-[12px] font-bold uppercase mt-1"><span className="text-[#FF9500] flex items-center"><Flame size={14} className="mr-1"/> {h.streak} Streak</span></div></div>
+                  <div key={h.id} className={`apple-card p-5 flex flex-col md:flex-row items-start md:items-center justify-between group transition-all duration-300 ${editingHabitId === h.id ? 'ring-2 ring-[#007AFF]' : 'hover:shadow-md'}`}>
+                    {/* Left: Check & Info */}
+                    <div className="flex items-center space-x-5 w-full md:w-auto mb-4 md:mb-0">
+                      <button onClick={() => toggleHabit(h)} className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 transform active:scale-90 ${done ? 'bg-[#34C759] border-[#34C759] text-white shadow-sm' : 'border-[#E5E5EA] hover:border-[#34C759] text-transparent'}`}>
+                          <Check strokeWidth={4} size={20} />
+                      </button>
+                      <div>
+                        <h4 className={`text-[18px] font-bold text-[#1D1D1F] ${done ? 'opacity-50 line-through decoration-2 decoration-[#D1D1D6]' : ''}`}>{h.name}</h4>
+                        <div className="flex items-center space-x-3 mt-1.5">
+                            {h.reminder_time && (
+                                <span className="flex items-center text-[11px] font-bold bg-[#F2F2F7] text-[#86868B] px-2 py-0.5 rounded-md">
+                                    <Clock size={10} className="mr-1"/> {h.reminder_time}
+                                </span>
+                            )}
+                            <span className="flex items-center text-[11px] font-bold bg-[#FFF5E5] text-[#FF9500] px-2 py-0.5 rounded-md">
+                                <Flame size={10} className="mr-1"/> {h.streak} {t.streak}
+                            </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                    {/* Middle: Weekly Tracker Dots (7 Days) */}
+                    <div className="flex items-center space-x-1.5 ml-0 md:ml-auto mr-0 md:mr-8 pl-[68px] md:pl-0">
+                        {last7Days.map((d, i) => {
+                           const dString = d.toLocaleDateString();
+                           const isDone = h.completed_dates?.includes(dString);
+                           const isToday = dString === today;
+                           return (
+                               <div key={i} className="flex flex-col items-center gap-1">
+                                   <div 
+                                      className={`w-2.5 h-2.5 rounded-full transition-all ${isDone ? 'bg-[#34C759]' : 'bg-[#E5E5EA]'} ${isToday && !isDone ? 'ring-2 ring-[#34C759] ring-offset-1 bg-white' : ''}`} 
+                                      title={dString}
+                                   />
+                               </div>
+                           )
+                        })}
+                    </div>
+
+                    {/* Right: Actions */}
+                    <div className="absolute top-4 right-4 md:static md:flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                          <button onClick={() => startEditingHabit(h)} className="text-[#007AFF] p-2 hover:bg-blue-50 rounded-lg"><Pencil size={18}/></button>
                          <button onClick={() => deleteHabit(h.id)} className="text-[#D1D1D6] hover:text-red-500 p-2 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
                     </div>
