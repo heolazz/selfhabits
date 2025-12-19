@@ -162,16 +162,13 @@ const App: React.FC = () => {
 
       habits.forEach(h => {
         if (h.reminder_time === currentTimeString) {
-           // Prevent spamming notification in the same minute? 
-           // Browser usually handles de-duplication, but let's be safe.
-           // A simple way is to rely on the fact interval runs once per minute mostly.
            new Notification(`Zenith: ${h.name}`, {
              body: lang === 'id' ? `Waktunya untuk: ${h.name}` : `It's time for: ${h.name}`,
-             icon: '/icon-192x192.png' // Pastikan ada icon di public folder atau hapus baris ini
+             icon: '/icon-192x192.png'
            });
         }
       });
-    }, 60000); // Check every 60 seconds
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [habits, notifPermission, lang]);
@@ -548,23 +545,23 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Habits Tab (REDESIGNED) */}
+        {/* Habits Tab (REDESIGNED & MOBILE FIXED) */}
         {activeTab === 'habits' && (
           <div className="space-y-8 fade-in">
-            {/* Input / Edit Form Habits */}
+            {/* Input Form - Mobile Optimized */}
             <div className={`apple-card p-6 border-none flex flex-col md:flex-row gap-4 transition-colors duration-300 ${editingHabitId ? 'bg-[#FFF8E6]' : 'bg-[#F9F9FB]'}`}>
-              <div className="flex-1 flex gap-3">
+              <div className="flex-1 flex flex-col md:flex-row gap-3"> {/* Changed to flex-col on mobile */}
                   <input className="apple-input flex-1 bg-white" placeholder={t.habitsTitle} value={newHabit.name} onChange={e => setNewHabit({...newHabit, name: e.target.value})}/>
-                  <input type="time" className="apple-input md:w-32 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
+                  <input type="time" className="apple-input w-full md:w-32 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
               </div>
               
               {editingHabitId ? (
                    <div className="flex space-x-2">
-                       <button onClick={handleAddHabit} className="apple-button px-5 h-12 bg-[#34C759] hover:bg-[#2DA84E] font-semibold text-sm">{t.update}</button>
-                       <button onClick={cancelEditHabit} className="apple-button px-4 h-12 bg-[#86868B] hover:bg-[#636366] text-white"><X size={20}/></button>
+                       <button onClick={handleAddHabit} className="apple-button flex-1 md:flex-none px-5 h-12 bg-[#34C759] hover:bg-[#2DA84E] font-semibold text-sm">{t.update}</button>
+                       <button onClick={cancelEditHabit} className="apple-button w-12 h-12 bg-[#86868B] hover:bg-[#636366] text-white flex items-center justify-center"><X size={20}/></button>
                    </div>
               ) : (
-                  <button onClick={handleAddHabit} className="apple-button px-6 h-12 font-semibold text-sm whitespace-nowrap">{t.startTracking}</button>
+                  <button onClick={handleAddHabit} className="apple-button w-full md:w-auto px-6 h-12 font-semibold text-sm whitespace-nowrap">{t.startTracking}</button>
               )}
             </div>
 
@@ -573,21 +570,21 @@ const App: React.FC = () => {
                 const today = new Date().toLocaleDateString();
                 const done = h.completed_dates?.includes(today);
                 return (
-                  <div key={h.id} className={`apple-card p-5 flex flex-col md:flex-row items-start md:items-center justify-between group transition-all duration-300 ${editingHabitId === h.id ? 'ring-2 ring-[#007AFF]' : 'hover:shadow-md'}`}>
+                  <div key={h.id} className={`apple-card p-5 flex flex-col md:flex-row items-start md:items-center justify-between group relative transition-all duration-300 ${editingHabitId === h.id ? 'ring-2 ring-[#007AFF]' : 'hover:shadow-md'}`}>
                     {/* Left: Check & Info */}
-                    <div className="flex items-center space-x-5 w-full md:w-auto mb-4 md:mb-0">
-                      <button onClick={() => toggleHabit(h)} className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 transform active:scale-90 ${done ? 'bg-[#34C759] border-[#34C759] text-white shadow-sm' : 'border-[#E5E5EA] hover:border-[#34C759] text-transparent'}`}>
+                    <div className="flex items-center space-x-4 w-full md:w-auto mb-4 md:mb-0 pr-12 md:pr-0"> {/* Added pr-12 for mobile to avoid button overlap */}
+                      <button onClick={() => toggleHabit(h)} className={`flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 transform active:scale-90 ${done ? 'bg-[#34C759] border-[#34C759] text-white shadow-sm' : 'border-[#E5E5EA] hover:border-[#34C759] text-transparent'}`}>
                           <Check strokeWidth={4} size={20} />
                       </button>
-                      <div>
-                        <h4 className={`text-[18px] font-bold text-[#1D1D1F] ${done ? 'opacity-50 line-through decoration-2 decoration-[#D1D1D6]' : ''}`}>{h.name}</h4>
-                        <div className="flex items-center space-x-3 mt-1.5">
+                      <div className="min-w-0"> {/* min-w-0 ensures text truncation works */}
+                        <h4 className={`text-[17px] font-bold text-[#1D1D1F] truncate ${done ? 'opacity-50 line-through decoration-2 decoration-[#D1D1D6]' : ''}`}>{h.name}</h4>
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5"> {/* Changed to flex-wrap and gap-2 for better mobile handling */}
                             {h.reminder_time && (
-                                <span className="flex items-center text-[11px] font-bold bg-[#F2F2F7] text-[#86868B] px-2 py-0.5 rounded-md">
+                                <span className="flex items-center text-[10px] font-bold bg-[#F2F2F7] text-[#86868B] px-2 py-0.5 rounded-md whitespace-nowrap">
                                     <Clock size={10} className="mr-1"/> {h.reminder_time}
                                 </span>
                             )}
-                            <span className="flex items-center text-[11px] font-bold bg-[#FFF5E5] text-[#FF9500] px-2 py-0.5 rounded-md">
+                            <span className="flex items-center text-[10px] font-bold bg-[#FFF5E5] text-[#FF9500] px-2 py-0.5 rounded-md whitespace-nowrap">
                                 <Flame size={10} className="mr-1"/> {h.streak} {t.streak}
                             </span>
                         </div>
@@ -595,13 +592,14 @@ const App: React.FC = () => {
                     </div>
 
                     {/* Middle: Weekly Tracker Dots (7 Days) */}
-                    <div className="flex items-center space-x-1.5 ml-0 md:ml-auto mr-0 md:mr-8 pl-[68px] md:pl-0">
+                    {/* Adjusted padding calculation: 48px (button) + 16px (gap) = 64px roughly. Using pl-[64px] or similar */}
+                    <div className="flex items-center space-x-1.5 ml-0 md:ml-auto mr-0 md:mr-8 pl-[64px] md:pl-0 w-full md:w-auto overflow-x-auto hide-scrollbar">
                         {last7Days.map((d, i) => {
                            const dString = d.toLocaleDateString();
                            const isDone = h.completed_dates?.includes(dString);
                            const isToday = dString === today;
                            return (
-                               <div key={i} className="flex flex-col items-center gap-1">
+                               <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0"> {/* flex-shrink-0 prevents squashing */}
                                    <div 
                                       className={`w-2.5 h-2.5 rounded-full transition-all ${isDone ? 'bg-[#34C759]' : 'bg-[#E5E5EA]'} ${isToday && !isDone ? 'ring-2 ring-[#34C759] ring-offset-1 bg-white' : ''}`} 
                                       title={dString}
