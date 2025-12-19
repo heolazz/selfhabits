@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Wallet, CheckCircle2, Plus, Trash2, ChevronRight, Pencil, Flame,
   Search, Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
   CreditCard, MoreHorizontal, Settings as SettingsIcon, ShieldCheck, Mail, Lock,
-  ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown
+  ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown,
+  X, Check, CalendarDays
 } from 'lucide-react';
 import { Expense, Habit, Note, AppTab, Language } from './types';
 
@@ -20,11 +21,12 @@ const translations = {
     desc: "Description", amount: "Amount", category: "Category", add: "Add",
     habitsTitle: "Daily Goals", startTracking: "Start Tracking",
     myJournal: "My Journal", newEntry: "New Entry", untitled: "Untitled Entry",
-    beginThoughts: "Begin your thoughts...", words: "Words", saved: "Saved",
+    beginThoughts: "Start writing...", words: "Words", saved: "Saved",
     delete: "Delete", signOut: "Sign Out", language: "Language",
     cloudSync: "Cloud Sync", notifications: "Notifications", privacy: "Privacy",
-    theme: "Theme", placeholderJournal: "Reflect on your day...",
+    theme: "Theme", placeholderJournal: "Reflect on your day, ideas, or dreams...",
     back: "Back", confirmDelete: "Delete this entry?", currency: "Rp",
+    update: "Update", cancel: "Cancel", created: "Created", edited: "Edited",
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -40,11 +42,12 @@ const translations = {
     desc: "Deskripsi", amount: "Jumlah", category: "Kategori", add: "Tambah",
     habitsTitle: "Target Harian", startTracking: "Mulai Lacak",
     myJournal: "Jurnal Saya", newEntry: "Catatan Baru", untitled: "Judul Kosong",
-    beginThoughts: "Mulai menulis pikiranmu...", words: "Kata", saved: "Tersimpan",
+    beginThoughts: "Mulai menulis...", words: "Kata", saved: "Tersimpan",
     delete: "Hapus", signOut: "Keluar", language: "Bahasa",
     cloudSync: "Sinkronisasi Cloud", notifications: "Notifikasi", privacy: "Privasi",
-    theme: "Tema", placeholderJournal: "Renungkan harimu...",
+    theme: "Tema", placeholderJournal: "Renungkan harimu, ide, atau mimpimu...",
     back: "Kembali", confirmDelete: "Hapus entri ini?", currency: "Rp",
+    update: "Perbarui", cancel: "Batal", created: "Dibuat", edited: "Diedit",
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
@@ -52,7 +55,7 @@ const translations = {
   }
 };
 
-// --- Authentication Screen (Tetap Sama) ---
+// --- Authentication Screen ---
 const AuthScreen: React.FC<{ lang: Language }> = ({ lang }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -129,9 +132,13 @@ const App: React.FC = () => {
   const [isMobileNoteEditing, setIsMobileNoteEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // --- EDITING STATE ---
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
+
   const t = translations[lang];
 
-  // --- 1. Logika Filter Berbasis Periode ---
+  // --- Filter Logic ---
   const filteredExpenses = useMemo(() => {
     const now = new Date();
     return expenses.filter(e => {
@@ -142,7 +149,6 @@ const App: React.FC = () => {
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         return itemDate >= oneWeekAgo;
       } else {
-        // Monthly
         return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
       }
     });
@@ -172,11 +178,17 @@ const App: React.FC = () => {
 
   const fetchData = async () => {
     if (!currentUser) return;
+    
+    // Updated Sorting Logic
     const [exp, hab, not] = await Promise.all([
+      // Expenses: Sort by date (transaction date)
       supabase.from('expenses').select('*').order('date', { ascending: false }),
-      supabase.from('habits').select('*'),
+      // Habits: Sort by created_at (Newest first)
+      supabase.from('habits').select('*').order('created_at', { ascending: false }), 
+      // Notes: Sort by updated_at (Last modified first)
       supabase.from('notes').select('*').order('updated_at', { ascending: false })
     ]);
+    
     if (exp.data) setExpenses(exp.data);
     if (hab.data) setHabits(hab.data);
     if (not.data) setNotes(not.data);
@@ -197,40 +209,143 @@ const App: React.FC = () => {
     if (outcome === 'accepted') setInstallPrompt(null);
   };
 
-  // CRUD Actions (Sama seperti sebelumnya)
+  // --- HELPER FORMAT DATE ---
+  const formatDateTime = (isoString: string) => {
+    if (!isoString) return '-';
+    const date = new Date(isoString);
+    return date.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  };
+
+  const formatShortDate = (isoString: string) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', {
+      day: 'numeric', month: 'short'
+    });
+  };
+
+  // --- EXPENSE CRUD ---
   const handleAddExpense = async () => {
     if (newExpense.description && newExpense.amount) {
-      const { data, error } = await supabase.from('expenses').insert([{
-        description: newExpense.description, amount: parseFloat(newExpense.amount),
-        category: newExpense.category, user_id: currentUser.id, date: new Date().toISOString()
-      }]).select();
-      if (!error && data) { setExpenses([data[0], ...expenses]); setNewExpense({ description: '', amount: '', category: 'Others' }); }
+      if (editingExpenseId) {
+        const { data, error } = await supabase.from('expenses').update({
+            description: newExpense.description, 
+            amount: parseFloat(newExpense.amount),
+            category: newExpense.category,
+            updated_at: new Date().toISOString() 
+        }).eq('id', editingExpenseId).select();
+        
+        if (!error && data) {
+            setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e));
+            cancelEditExpense(); 
+        }
+      } else {
+        const { data, error } = await supabase.from('expenses').insert([{
+          description: newExpense.description, amount: parseFloat(newExpense.amount),
+          category: newExpense.category, user_id: currentUser.id, date: new Date().toISOString()
+        }]).select();
+        if (!error && data) { 
+            setExpenses([data[0], ...expenses]); 
+            setNewExpense({ description: '', amount: '', category: 'Others' }); 
+        }
+      }
     }
   };
-  const deleteExpense = async (id: string) => { if (!(await supabase.from('expenses').delete().eq('id', id)).error) setExpenses(expenses.filter(x => x.id !== id)); };
 
+  const startEditingExpense = (e: Expense) => {
+    setEditingExpenseId(e.id);
+    setNewExpense({
+        description: e.description,
+        amount: e.amount.toString(),
+        category: e.category
+    });
+  };
+
+  const cancelEditExpense = () => {
+    setEditingExpenseId(null);
+    setNewExpense({ description: '', amount: '', category: 'Others' });
+  };
+
+  const deleteExpense = async (id: string) => { 
+      if (!(await supabase.from('expenses').delete().eq('id', id)).error) {
+        setExpenses(expenses.filter(x => x.id !== id));
+        if (editingExpenseId === id) cancelEditExpense();
+      }
+  };
+
+  // --- HABIT CRUD ---
   const handleAddHabit = async () => {
     if(newHabit.name) {
-      const { data, error } = await supabase.from('habits').insert([{ name: newHabit.name, streak: 0, completed_dates: [], reminder_time: newHabit.time, user_id: currentUser.id }]).select();
-      if (!error && data) { setHabits([data[0], ...habits]); setNewHabit({name:'', time:''}); }
+      if (editingHabitId) {
+        const { data, error } = await supabase.from('habits').update({
+            name: newHabit.name,
+            reminder_time: newHabit.time,
+            updated_at: new Date().toISOString()
+        }).eq('id', editingHabitId).select();
+
+        if (!error && data) {
+            setHabits(habits.map(h => h.id === editingHabitId ? data[0] : h));
+            cancelEditHabit();
+        }
+      } else {
+        const { data, error } = await supabase.from('habits').insert([{ name: newHabit.name, streak: 0, completed_dates: [], reminder_time: newHabit.time, user_id: currentUser.id }]).select();
+        if (!error && data) { setHabits([data[0], ...habits]); setNewHabit({name:'', time:''}); }
+      }
     }
   };
+
+  const startEditingHabit = (h: Habit) => {
+    setEditingHabitId(h.id);
+    setNewHabit({
+        name: h.name,
+        time: h.reminder_time || ''
+    });
+  };
+
+  const cancelEditHabit = () => {
+    setEditingHabitId(null);
+    setNewHabit({ name: '', time: '' });
+  };
+
   const toggleHabit = async (h: Habit) => {
     const today = new Date().toLocaleDateString();
     const alreadyDone = h.completed_dates?.includes(today);
     const updatedDates = alreadyDone ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today];
-    const { data, error } = await supabase.from('habits').update({ completed_dates: updatedDates, streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1 }).eq('id', h.id).select();
+    
+    const { data, error } = await supabase.from('habits').update({ 
+      completed_dates: updatedDates, 
+      streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1,
+      updated_at: new Date().toISOString()
+    }).eq('id', h.id).select();
+
     if (!error && data) setHabits(habits.map(item => item.id === h.id ? data[0] : item));
   };
-  const deleteHabit = async (id: string) => { if (!(await supabase.from('habits').delete().eq('id', id)).error) setHabits(habits.filter(x => x.id !== id)); };
+  
+  const deleteHabit = async (id: string) => { 
+      if (!(await supabase.from('habits').delete().eq('id', id)).error) {
+          setHabits(habits.filter(x => x.id !== id));
+          if (editingHabitId === id) cancelEditHabit();
+      }
+  };
 
+  // --- Note CRUD (Manual) ---
   const handleSaveNoteManual = async () => {
     if (!activeNote || !currentUser) return;
     setIsSaving(true);
-    const noteData = { title: activeNote.title || t.untitled, content: activeNote.content || '', user_id: currentUser.id, updated_at: new Date().toISOString() };
+    // Note: created_at is handled by Supabase default now() on insert
+    const noteData = { 
+        title: activeNote.title || t.untitled, 
+        content: activeNote.content || '', 
+        user_id: currentUser.id, 
+        updated_at: new Date().toISOString() 
+    };
+    
     const { data, error } = activeNote.id && activeNote.id.length > 15 
       ? await supabase.from('notes').update(noteData).eq('id', activeNote.id).select()
       : await supabase.from('notes').insert([noteData]).select();
+    
     if (!error && data) {
       setNotes(activeNote.id && activeNote.id.length > 15 ? notes.map(n => n.id === activeNote.id ? data[0] : n) : [data[0], ...notes]);
       setActiveNote(data[0]);
@@ -329,7 +444,7 @@ const App: React.FC = () => {
             {/* Filter Summary */}
             <div className="apple-card p-8 bg-[#007AFF] text-white border-none relative overflow-hidden">
                <TrendingDown className="absolute right-[-20px] bottom-[-20px] w-40 h-40 opacity-10 rotate-[-15deg]" />
-                <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-1">
+               <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-1">
                 Total {
                   financeFilter === 'daily' ? t.today : 
                   financeFilter === 'weekly' ? t.lastSevenDays : 
@@ -339,18 +454,41 @@ const App: React.FC = () => {
                <h3 className="text-4xl font-extrabold">{formatCurrency(totalSpentFiltered)}</h3>
             </div>
 
-            <div className="apple-card p-8 bg-[#F9F9FB] border-none"><div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <input className="md:col-span-5 apple-input" placeholder={t.desc} value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})}/>
-              <input className="md:col-span-3 apple-input" type="number" placeholder="0" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})}/>
-              <select className="md:col-span-3 apple-input bg-white" value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
-              <button onClick={handleAddExpense} className="md:col-span-1 apple-button h-11"><Plus size={20}/></button>
-            </div></div>
+            {/* Input / Edit Form */}
+            <div className={`apple-card p-8 border-none transition-colors duration-300 ${editingExpenseId ? 'bg-[#FFF8E6] border-2 border-[#FFD60A]' : 'bg-[#F9F9FB]'}`}>
+                {editingExpenseId && <p className="text-xs font-bold text-[#FF9500] uppercase mb-3">{t.update} Transaction</p>}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <input className="md:col-span-5 apple-input bg-white" placeholder={t.desc} value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})}/>
+                    <input className="md:col-span-3 apple-input bg-white" type="number" placeholder="0" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})}/>
+                    <select className="md:col-span-3 apple-input bg-white" value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
+                    
+                    <div className="md:col-span-1 flex space-x-2">
+                         {editingExpenseId ? (
+                             <>
+                                <button onClick={handleAddExpense} className="apple-button h-11 flex-1 bg-[#34C759] hover:bg-[#2DA84E]"><Check size={20}/></button>
+                                <button onClick={cancelEditExpense} className="apple-button h-11 flex-1 bg-[#86868B] hover:bg-[#636366]"><X size={20}/></button>
+                             </>
+                         ) : (
+                             <button onClick={handleAddExpense} className="apple-button h-11 w-full"><Plus size={20}/></button>
+                         )}
+                    </div>
+                </div>
+            </div>
 
             <div className="apple-card overflow-hidden divide-y divide-[#F2F2F7]">
               {filteredExpenses.map(e => (
-                <div key={e.id} className="p-5 flex items-center group hover:bg-[#F9F9FB]">
-                  <div className="flex-1 flex items-center space-x-4"><div className="w-11 h-11 rounded-xl bg-[#F5F5F7] flex items-center justify-center">{getCategoryIcon(e.category)}</div><div><p className="font-bold">{e.description}</p><p className="text-[12px] text-[#86868B]">{t.categories[e.category]} • {new Date(e.date).toLocaleDateString()}</p></div></div>
-                  <div className="flex items-center space-x-6"><p className="font-bold">-{formatCurrency(e.amount)}</p><button onClick={() => deleteExpense(e.id)} className="text-[#D1D1D6] hover:text-red-500 opacity-0 group-hover:opacity-100 p-2"><Trash2 size={18}/></button></div>
+                <div key={e.id} className={`p-5 flex items-center group transition-colors ${editingExpenseId === e.id ? 'bg-[#F2F2F7]' : 'hover:bg-[#F9F9FB]'}`}>
+                  <div className="flex-1 flex items-center space-x-4">
+                      <div className="w-11 h-11 rounded-xl bg-[#F5F5F7] flex items-center justify-center">{getCategoryIcon(e.category)}</div>
+                      <div><p className="font-bold">{e.description}</p><p className="text-[12px] text-[#86868B]">{t.categories[e.category]} • {new Date(e.date).toLocaleDateString()}</p></div>
+                  </div>
+                  <div className="flex items-center space-x-6">
+                      <p className="font-bold">-{formatCurrency(e.amount)}</p>
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <button onClick={() => startEditingExpense(e)} className="text-[#007AFF] p-2 hover:bg-blue-50 rounded-lg"><Pencil size={16}/></button>
+                         <button onClick={() => deleteExpense(e.id)} className="text-[#D1D1D6] hover:text-red-500 p-2 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
+                      </div>
+                  </div>
                 </div>
               ))}
               {filteredExpenses.length === 0 && <EmptyState message={lang === 'id' ? 'Catatan periode ini kosong.' : 'No records for this period.'} />}
@@ -358,62 +496,113 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Habits Tab (Tetap Sama) */}
+        {/* Habits Tab */}
         {activeTab === 'habits' && (
           <div className="space-y-8 fade-in">
-            <div className="apple-card p-8 bg-[#F9F9FB] border-none flex flex-col md:flex-row gap-4">
-              <input className="apple-input flex-1" placeholder={t.habitsTitle} value={newHabit.name} onChange={e => setNewHabit({...newHabit, name: e.target.value})}/>
-              <input type="time" className="apple-input md:w-40 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
-              <button onClick={handleAddHabit} className="apple-button px-8 h-12">{t.startTracking}</button>
+            {/* Input / Edit Form Habits */}
+            <div className={`apple-card p-8 border-none flex flex-col md:flex-row gap-4 transition-colors duration-300 ${editingHabitId ? 'bg-[#FFF8E6]' : 'bg-[#F9F9FB]'}`}>
+              <div className="flex-1 flex gap-4">
+                  <input className="apple-input flex-1 bg-white" placeholder={t.habitsTitle} value={newHabit.name} onChange={e => setNewHabit({...newHabit, name: e.target.value})}/>
+                  <input type="time" className="apple-input md:w-40 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
+              </div>
+              
+              {editingHabitId ? (
+                   <div className="flex space-x-2">
+                       <button onClick={handleAddHabit} className="apple-button px-6 h-12 bg-[#34C759] hover:bg-[#2DA84E]">{t.update}</button>
+                       <button onClick={cancelEditHabit} className="apple-button px-4 h-12 bg-[#86868B] hover:bg-[#636366]">{t.cancel}</button>
+                   </div>
+              ) : (
+                  <button onClick={handleAddHabit} className="apple-button px-8 h-12">{t.startTracking}</button>
+              )}
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {habits.map(h => {
                 const done = h.completed_dates?.includes(new Date().toLocaleDateString());
                 return (
-                  <div key={h.id} className="apple-card p-6 flex items-center justify-between group">
+                  <div key={h.id} className={`apple-card p-6 flex items-center justify-between group transition-all ${editingHabitId === h.id ? 'ring-2 ring-[#007AFF]' : ''}`}>
                     <div className="flex items-center space-x-5">
                       <button onClick={() => toggleHabit(h)} className={`w-11 h-11 rounded-full border-2 flex items-center justify-center ${done ? 'bg-[#34C759] border-[#34C759] text-white' : 'border-[#D1D1D6] hover:border-[#34C759]'}`}><CheckCircle2 size={24}/></button>
                       <div><h4 className={`text-[17px] font-bold ${done ? 'text-[#86868B] line-through' : ''}`}>{h.name}</h4><div className="flex items-center space-x-4 text-[12px] font-bold uppercase mt-1"><span className="text-[#FF9500] flex items-center"><Flame size={14} className="mr-1"/> {h.streak} Streak</span></div></div>
                     </div>
-                    <button onClick={() => deleteHabit(h.id)} className="text-[#D1D1D6] hover:text-red-500 opacity-0 group-hover:opacity-100 p-2"><Trash2 size={18}/></button>
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <button onClick={() => startEditingHabit(h)} className="text-[#007AFF] p-2 hover:bg-blue-50 rounded-lg"><Pencil size={18}/></button>
+                         <button onClick={() => deleteHabit(h.id)} className="text-[#D1D1D6] hover:text-red-500 p-2 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+                    </div>
                   </div>
               )})}
             </div>
           </div>
         )}
 
-        {/* Journal Tab (Save Manual) */}
+        {/* Journal Tab (IMPROVED) */}
         {activeTab === 'notes' && (
-          <div className="grid grid-cols-12 gap-0 md:gap-10 h-[calc(100vh-280px)] fade-in overflow-hidden">
-            <div className={`col-span-12 md:col-span-4 flex flex-col space-y-4 overflow-y-auto pr-1 ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
-              <button onClick={() => { setActiveNote({ title: '', content: '', user_id: currentUser.id } as any); setIsMobileNoteEditing(true); }} className="apple-button w-full py-3 mb-2 shadow-sm"><Plus size={18} className="mr-2 inline"/> {t.newEntry}</button>
+          <div className="grid grid-cols-12 gap-0 md:gap-8 h-[calc(100vh-280px)] fade-in overflow-hidden">
+            {/* Sidebar List */}
+            <div className={`col-span-12 md:col-span-4 flex flex-col space-y-3 overflow-y-auto pr-2 custom-scrollbar ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
+              <button onClick={() => { setActiveNote({ title: '', content: '', user_id: currentUser.id } as any); setIsMobileNoteEditing(true); }} className="apple-button w-full py-4 mb-2 shadow-sm flex items-center justify-center"><Plus size={18} className="mr-2"/> {t.newEntry}</button>
               {notes.map(n => (
-                <div key={n.id} onClick={() => { setActiveNote(n); setIsMobileNoteEditing(true); }} className={`apple-card p-5 cursor-pointer border-none transition-all ${activeNote?.id === n.id ? 'bg-[#F2F2F7]' : 'hover:bg-[#F9F9FB]'}`}>
-                  <h5 className="font-bold truncate">{n.title || t.untitled}</h5>
-                  <p className="text-[13px] text-[#86868B] line-clamp-2 mt-1">{n.content || "..."}</p>
+                <div key={n.id} onClick={() => { setActiveNote(n); setIsMobileNoteEditing(true); }} className={`apple-card p-5 cursor-pointer border-none transition-all group ${activeNote?.id === n.id ? 'bg-[#F2F2F7] ring-1 ring-[#E5E5EA]' : 'hover:bg-[#F9F9FB]'}`}>
+                  <h5 className={`font-bold truncate text-[15px] ${activeNote?.id === n.id ? 'text-[#007AFF]' : 'text-[#1D1D1F]'}`}>{n.title || t.untitled}</h5>
+                  <p className="text-[13px] text-[#86868B] line-clamp-2 mt-1.5 leading-relaxed">{n.content || t.beginThoughts}</p>
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#F2F2F7] opacity-60 group-hover:opacity-100 transition-opacity">
+                     <span className="text-[10px] font-bold text-[#86868B] uppercase tracking-wide flex items-center"><CalendarDays size={10} className="mr-1"/> {formatShortDate(n.updated_at || n.created_at)}</span>
+                  </div>
                 </div>
               ))}
             </div>
-            <div className={`col-span-12 md:col-span-8 flex-col h-full apple-card p-6 md:p-12 border-none bg-white relative ${isMobileNoteEditing ? 'flex' : 'hidden md:flex'}`}>
-               <div className="flex items-center justify-between mb-8">
+
+            {/* Editor Area */}
+            <div className={`col-span-12 md:col-span-8 flex-col h-full apple-card p-0 border-none bg-white relative overflow-hidden shadow-sm ${isMobileNoteEditing ? 'flex' : 'hidden md:flex'}`}>
+               {/* Editor Toolbar */}
+               <div className="flex items-center justify-between px-6 py-4 border-b border-[#F2F2F7] bg-white z-10">
                   <button onClick={() => setIsMobileNoteEditing(false)} className="md:hidden text-[#007AFF] font-bold flex items-center"><ArrowLeft size={20} className="mr-1" /> {t.back}</button>
-                  <div className="flex items-center space-x-3 ml-auto">
+                  <div className="flex items-center space-x-2 ml-auto">
                     {activeNote && (
                       <>
-                        <button onClick={handleSaveNoteManual} disabled={isSaving} className={`flex items-center px-5 py-2 rounded-full text-sm font-bold transition-all ${isSaving ? 'bg-gray-100 text-gray-400' : 'bg-[#007AFF] text-white hover:bg-[#0062CC]'}`}>
-                          <Save size={16} className="mr-2"/> {isSaving ? '...' : 'Save'}
+                        <button onClick={handleSaveNoteManual} disabled={isSaving} className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wide ${isSaving ? 'bg-gray-100 text-gray-400' : 'bg-[#007AFF] text-white hover:bg-[#0062CC]'}`}>
+                          <Save size={14} className="mr-2"/> {isSaving ? '...' : t.saved}
                         </button>
-                        <button onClick={() => deleteNote(activeNote.id)} className="text-red-500 font-bold px-3 py-2">Delete</button>
+                        <button onClick={() => deleteNote(activeNote.id)} className="text-[#D1D1D6] hover:text-red-500 p-2.5 rounded-xl hover:bg-red-50 transition-colors"><Trash2 size={18}/></button>
                       </>
                     )}
                   </div>
                </div>
-               <input className="text-2xl md:text-4xl font-extrabold bg-transparent outline-none mb-6 w-full" placeholder={t.untitled} value={activeNote?.title || ''} 
-                onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} />
-               <textarea className="flex-1 w-full bg-transparent outline-none resize-none text-[17px] md:text-[20px]" placeholder={t.placeholderJournal} value={activeNote?.content || ''} 
-                onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} />
-               <div className="hidden md:flex mt-8 pt-6 border-t border-[#F2F2F7] text-[11px] font-bold text-[#86868B] uppercase tracking-widest">
-                 <span className="flex items-center"><ShieldCheck size={14} className="mr-1"/> Sync Active</span>
+               
+               {/* Editor Content */}
+               <div className="flex-1 overflow-y-auto p-6 md:p-10">
+                 {activeNote && (
+                    <div className="max-w-3xl mx-auto">
+                        {/* Metadata Header */}
+                        {activeNote.id && (
+                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mb-8 text-[11px] text-[#86868B] font-semibold uppercase tracking-widest">
+                              <span className="flex items-center"><Calendar size={12} className="mr-1.5"/> {t.created}: {formatDateTime(activeNote.created_at)}</span>
+                              {activeNote.updated_at && activeNote.updated_at !== activeNote.created_at && (
+                                <span className="flex items-center"><Pencil size={12} className="mr-1.5"/> {t.edited}: {formatDateTime(activeNote.updated_at)}</span>
+                              )}
+                           </div>
+                        )}
+
+                        <input 
+                            className="text-3xl md:text-5xl font-extrabold bg-transparent outline-none mb-6 w-full text-[#1D1D1F] placeholder-gray-300" 
+                            placeholder={t.untitled} 
+                            value={activeNote?.title || ''} 
+                            onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} 
+                        />
+                        <textarea 
+                            className="w-full bg-transparent outline-none resize-none text-[17px] md:text-[19px] leading-relaxed text-[#424245] placeholder-gray-300 min-h-[400px]" 
+                            placeholder={t.placeholderJournal} 
+                            value={activeNote?.content || ''} 
+                            onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} 
+                        />
+                    </div>
+                 )}
+                 {!activeNote && (
+                    <div className="h-full flex flex-col items-center justify-center text-[#D1D1D6]">
+                        <Pencil size={48} className="mb-4 opacity-20"/>
+                        <p className="text-[#86868B] font-medium">{t.beginThoughts}</p>
+                    </div>
+                 )}
                </div>
             </div>
           </div>
