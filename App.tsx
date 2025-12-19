@@ -5,7 +5,7 @@ import {
   Search, Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
   CreditCard, MoreHorizontal, Settings as SettingsIcon, ShieldCheck, Mail, Lock,
   ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown,
-  X, Check, CalendarDays, MoreVertical
+  X, Check, CalendarDays, MoreVertical, BellRing
 } from 'lucide-react';
 import { Expense, Habit, Note, AppTab, Language } from './types';
 
@@ -27,7 +27,7 @@ const translations = {
     theme: "Theme", placeholderJournal: "Reflect on your day, ideas, or dreams...",
     back: "Back", confirmDelete: "Delete this entry?", currency: "Rp",
     update: "Update", cancel: "Cancel", created: "Created", edited: "Edited",
-    streak: "Streak", time: "Time",
+    streak: "Streak", time: "Time", enableNotif: "Enable Notifications", notifEnabled: "Notifications Active",
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -49,7 +49,7 @@ const translations = {
     theme: "Tema", placeholderJournal: "Renungkan harimu, ide, atau mimpimu...",
     back: "Kembali", confirmDelete: "Hapus entri ini?", currency: "Rp",
     update: "Perbarui", cancel: "Batal", created: "Dibuat", edited: "Diedit",
-    streak: "Streak", time: "Waktu",
+    streak: "Streak", time: "Waktu", enableNotif: "Aktifkan Notifikasi", notifEnabled: "Notifikasi Aktif",
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
@@ -118,6 +118,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [notifPermission, setNotifPermission] = useState(Notification.permission);
   
   // Data States
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -139,6 +140,42 @@ const App: React.FC = () => {
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
 
   const t = translations[lang];
+
+  // --- NOTIFICATION LOGIC ---
+  const requestNotificationPermission = async () => {
+    const permission = await Notification.requestPermission();
+    setNotifPermission(permission);
+    if (permission === 'granted') {
+      new Notification('Zenith', { body: lang === 'id' ? 'Notifikasi diaktifkan!' : 'Notifications enabled!' });
+    }
+  };
+
+  useEffect(() => {
+    if (notifPermission !== 'granted' || habits.length === 0) return;
+
+    // Check every minute
+    const interval = setInterval(() => {
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeString = `${currentHours}:${currentMinutes}`;
+
+      habits.forEach(h => {
+        if (h.reminder_time === currentTimeString) {
+           // Prevent spamming notification in the same minute? 
+           // Browser usually handles de-duplication, but let's be safe.
+           // A simple way is to rely on the fact interval runs once per minute mostly.
+           new Notification(`Zenith: ${h.name}`, {
+             body: lang === 'id' ? `Waktunya untuk: ${h.name}` : `It's time for: ${h.name}`,
+             icon: '/icon-192x192.png' // Pastikan ada icon di public folder atau hapus baris ini
+           });
+        }
+      });
+    }, 60000); // Check every 60 seconds
+
+    return () => clearInterval(interval);
+  }, [habits, notifPermission, lang]);
+
 
   // --- Helper Functions ---
   const getLast7Days = () => {
@@ -407,6 +444,15 @@ const App: React.FC = () => {
             </h2>
             <p className="text-[#86868B] text-[15px] font-semibold mt-1">{new Date().toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
+          
+          {/* Notification Bell */}
+          <button 
+             onClick={requestNotificationPermission} 
+             className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${notifPermission === 'granted' ? 'bg-[#F2F2F7] text-[#007AFF]' : 'bg-[#FF3B30] text-white animate-pulse'}`}
+             title={notifPermission === 'granted' ? t.notifEnabled : t.enableNotif}
+          >
+             {notifPermission === 'granted' ? <BellRing size={20} /> : <Bell size={20} />}
+          </button>
         </header>
 
         {/* Dashboard Content */}
