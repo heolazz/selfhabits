@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './services/supabaseClient';
 import { 
-  LayoutDashboard, Wallet, CheckCircle2, Plus, Trash2, ChevronRight, Pencil, Flame,
-  Search, Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
+  LayoutDashboard, Wallet, CheckCircle2, Plus, Trash2, Pencil, Flame,
+  Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
   CreditCard, MoreHorizontal, Settings as SettingsIcon, ShieldCheck, Mail, Lock,
   ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown,
-  X, Check, CalendarDays, MoreVertical, BellRing
+  X, Check, CalendarDays, Loader // Ganti Loader2 jadi Loader biasa
 } from 'lucide-react';
 import { Expense, Habit, Note, AppTab, Language } from './types';
 
@@ -134,6 +134,9 @@ const App: React.FC = () => {
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [isMobileNoteEditing, setIsMobileNoteEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Anti-Spam / Loading State for Habits
+  const [processingHabits, setProcessingHabits] = useState<string[]>([]);
 
   // --- EDITING STATE ---
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
@@ -143,39 +146,38 @@ const App: React.FC = () => {
 
   // --- NOTIFICATION LOGIC ---
   const requestNotificationPermission = async () => {
-    const permission = await Notification.requestPermission();
-    setNotifPermission(permission);
-    if (permission === 'granted') {
-      new Notification('Zenith', { body: lang === 'id' ? 'Notifikasi diaktifkan!' : 'Notifications enabled!' });
+    try {
+      const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+      if (permission === 'granted') {
+        new Notification('Zenith', { body: lang === 'id' ? 'Notifikasi diaktifkan!' : 'Notifications enabled!' });
+      }
+    } catch (e) {
+      console.error("Notif error", e);
     }
   };
 
   useEffect(() => {
     if (notifPermission !== 'granted' || habits.length === 0) return;
-
-    // Check every minute
     const interval = setInterval(() => {
       const now = new Date();
       const currentHours = String(now.getHours()).padStart(2, '0');
       const currentMinutes = String(now.getMinutes()).padStart(2, '0');
       const currentTimeString = `${currentHours}:${currentMinutes}`;
-
       habits.forEach(h => {
         if (h.reminder_time === currentTimeString) {
            new Notification(`Zenith: ${h.name}`, {
              body: lang === 'id' ? `Waktunya untuk: ${h.name}` : `It's time for: ${h.name}`,
-             icon: '/icon-192x192.png'
+             // icon: '/icon.png' // Removed to prevent 404
            });
         }
       });
     }, 60000);
-
     return () => clearInterval(interval);
   }, [habits, notifPermission, lang]);
 
-
   // --- Helper Functions ---
-  const getLast7Days = () => {
+  const last7Days = useMemo(() => {
     const dates = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -183,9 +185,10 @@ const App: React.FC = () => {
       dates.push(d);
     }
     return dates;
-  };
-  const last7Days = useMemo(() => getLast7Days(), []);
+  }, []);
 
+  const formatCurrency = (val: number) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val).replace('IDR', 'Rp');
+  
   const formatDateTime = (isoString: string) => {
     if (!isoString) return '-';
     const date = new Date(isoString);
@@ -222,24 +225,7 @@ const App: React.FC = () => {
     filteredExpenses.reduce((a, b) => a + b.amount, 0), 
   [filteredExpenses]);
 
-  // --- Auth & Data Lifecycle ---
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setCurrentUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUser(session?.user ?? null);
-    });
-    if (window.matchMedia('(display-mode: standalone)').matches) setIsInstalled(true);
-    const handleBeforePrompt = (e: any) => { e.preventDefault(); setInstallPrompt(e); };
-    window.addEventListener('beforeinstallprompt', handleBeforePrompt);
-    return () => { subscription.unsubscribe(); window.removeEventListener('beforeinstallprompt', handleBeforePrompt); };
-  }, []);
-
-  useEffect(() => { if (currentUser) fetchData(); }, [currentUser]);
-  useEffect(() => { localStorage.setItem('zenith_lang', lang); }, [lang]);
-
+  // --- Auth & Data Lifecycle & Realtime ---
   const fetchData = async () => {
     if (!currentUser) return;
     const [exp, hab, not] = await Promise.all([
@@ -251,6 +237,44 @@ const App: React.FC = () => {
     if (hab.data) setHabits(hab.data);
     if (not.data) setNotes(not.data);
   };
+
+  useEffect(() => {
+    // Auth Listener
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null);
+    });
+
+    if (window.matchMedia('(display-mode: standalone)').matches) setIsInstalled(true);
+    const handleBeforePrompt = (e: any) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener('beforeinstallprompt', handleBeforePrompt);
+    
+    return () => { subscription.unsubscribe(); window.removeEventListener('beforeinstallprompt', handleBeforePrompt); };
+  }, []);
+
+  useEffect(() => { if (currentUser) fetchData(); }, [currentUser]);
+  useEffect(() => { localStorage.setItem('zenith_lang', lang); }, [lang]);
+
+  // --- SUPABASE REALTIME (SAFE MODE) ---
+  useEffect(() => {
+    if (!currentUser) return;
+    try {
+        const channel = supabase.channel('public:habits')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'habits' }, () => {
+            fetchData();
+        })
+        .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    } catch (e) {
+        console.error("Realtime error", e);
+    }
+  }, [currentUser]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -316,7 +340,7 @@ const App: React.FC = () => {
       }
   };
 
-  // --- HABIT CRUD ---
+  // --- HABIT CRUD (FIXED LOGIC) ---
   const handleAddHabit = async () => {
     if(newHabit.name) {
       if (editingHabitId) {
@@ -351,17 +375,28 @@ const App: React.FC = () => {
   };
 
   const toggleHabit = async (h: Habit) => {
+    if (processingHabits.includes(h.id)) return;
+    setProcessingHabits(prev => [...prev, h.id]);
+
     const today = new Date().toLocaleDateString();
     const alreadyDone = h.completed_dates?.includes(today);
-    const updatedDates = alreadyDone ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today];
+    const updatedDatesRaw = alreadyDone 
+        ? h.completed_dates.filter(d => d !== today) 
+        : [...(h.completed_dates || []), today];
     
+    // Unique Date Fix
+    const uniqueDates = Array.from(new Set(updatedDatesRaw));
+
     const { data, error } = await supabase.from('habits').update({ 
-      completed_dates: updatedDates, 
+      completed_dates: uniqueDates, 
       streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1,
       updated_at: new Date().toISOString()
     }).eq('id', h.id).select();
 
-    if (!error && data) setHabits(habits.map(item => item.id === h.id ? data[0] : item));
+    if (!error && data) {
+        setHabits(habits.map(item => item.id === h.id ? data[0] : item));
+    }
+    setProcessingHabits(prev => prev.filter(id => id !== h.id));
   };
   
   const deleteHabit = async (id: string) => { 
@@ -394,9 +429,6 @@ const App: React.FC = () => {
   };
   const deleteNote = async (id: string) => { if(window.confirm(t.confirmDelete) && !(await supabase.from('notes').delete().eq('id', id)).error) { setNotes(notes.filter(n => n.id !== id)); setActiveNote(null); setIsMobileNoteEditing(false); } };
 
-  // UI Helpers
-  const totalSpentGlobal = useMemo(() => expenses.reduce((a, b) => a + b.amount, 0), [expenses]);
-  const formatCurrency = (val: number) => new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val).replace('IDR', 'Rp');
   const getCategoryIcon = (cat: string) => {
     const icons: any = { Food: <Coffee size={16}/>, Transport: <Car size={16}/>, Shopping: <ShoppingBag size={16}/>, Bills: <CreditCard size={16}/>, Health: <Heart size={16}/>, Entertainment: <Gamepad2 size={16}/> };
     return icons[cat] || <MoreHorizontal size={16}/>;
@@ -406,7 +438,7 @@ const App: React.FC = () => {
   if (!currentUser) return <AuthScreen lang={lang} />;
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-white">
+    <div className="flex flex-col md:flex-row min-h-screen bg-white w-full overflow-x-hidden">
       {/* Sidebar */}
       <aside className="hidden md:flex w-[260px] bg-white border-r border-[#F2F2F7] fixed h-full flex-col p-8 z-50">
         <div className="flex items-center space-x-3.5 mb-12 px-2">
@@ -431,8 +463,9 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 md:ml-[260px] pb-24 md:pb-12 pt-safe px-6 md:px-16 w-full max-w-[1280px]">
-        <header className={`py-10 md:py-20 flex justify-between items-center ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
+      {/* Main Content */}
+      <main className="flex-1 md:ml-[260px] pb-24 md:pb-12 pt-6 md:pt-16 px-6 md:px-16 w-full max-w-[1280px]">
+        <header className={`py-6 md:py-10 flex justify-between items-center ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-[#1D1D1F] tracking-tight">
               {activeTab === 'dashboard' && `${t.hello}, ${currentUser.user_metadata?.full_name?.split(' ')[0] || 'User'}`}
@@ -442,13 +475,12 @@ const App: React.FC = () => {
             <p className="text-[#86868B] text-[15px] font-semibold mt-1">{new Date().toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
           
-          {/* Notification Bell */}
           <button 
              onClick={requestNotificationPermission} 
              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${notifPermission === 'granted' ? 'bg-[#F2F2F7] text-[#007AFF]' : 'bg-[#FF3B30] text-white animate-pulse'}`}
              title={notifPermission === 'granted' ? t.notifEnabled : t.enableNotif}
           >
-             {notifPermission === 'granted' ? <BellRing size={20} /> : <Bell size={20} />}
+             <Bell size={20} className={notifPermission === 'granted' ? '' : 'fill-current'} />
           </button>
         </header>
 
@@ -456,11 +488,10 @@ const App: React.FC = () => {
         {activeTab === 'dashboard' && (
           <div className="space-y-12 fade-in">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="apple-card p-8"><div className="w-10 h-10 rounded-xl bg-[#F5F5F7] flex items-center justify-center text-[#007AFF] mb-6"><Wallet size={20}/></div><p className="text-[11px] font-bold text-[#86868B] uppercase mb-1.5">{t.totalSpend}</p><h3 className="text-2xl font-bold truncate">{formatCurrency(totalSpentGlobal)}</h3></div>
+              <div className="apple-card p-8"><div className="w-10 h-10 rounded-xl bg-[#F5F5F7] flex items-center justify-center text-[#007AFF] mb-6"><Wallet size={20}/></div><p className="text-[11px] font-bold text-[#86868B] uppercase mb-1.5">{t.totalSpend}</p><h3 className="text-2xl font-bold truncate">{formatCurrency(totalSpentFiltered)}</h3></div>
               <div className="apple-card p-8"><div className="w-10 h-10 rounded-xl bg-[#F5F5F7] flex items-center justify-center text-[#FF9500] mb-6"><Flame size={20}/></div><p className="text-[11px] font-bold text-[#86868B] uppercase mb-1.5">{t.bestStreak}</p><h3 className="text-3xl font-bold">{habits.length > 0 ? Math.max(...habits.map(h => h.streak), 0) : 0} <span className="text-base text-[#86868B]">Days</span></h3></div>
               <div className="apple-card p-8"><div className="w-10 h-10 rounded-xl bg-[#F5F5F7] flex items-center justify-center text-[#5856D6] mb-6"><Pencil size={20}/></div><p className="text-[11px] font-bold text-[#86868B] uppercase mb-1.5">{t.records}</p><h3 className="text-3xl font-bold">{notes.length}</h3></div>
             </div>
-            {/* Aktivitas Terbaru (Global) */}
             <div className="apple-card p-8"><h4 className="font-bold text-xl mb-8">{t.recentActivity}</h4>
                 {expenses.slice(0, 4).map(e => (
                   <div key={e.id} className="flex justify-between items-center mb-6 last:mb-0">
@@ -475,7 +506,6 @@ const App: React.FC = () => {
         {/* Finance Tab */}
         {activeTab === 'finance' && (
           <div className="space-y-8 fade-in">
-            {/* Segmented Control */}
             <div className="flex bg-[#F2F2F7] p-1 rounded-xl w-full max-w-sm mx-auto shadow-inner">
               {(['daily', 'weekly', 'monthly'] as const).map((f) => (
                 <button
@@ -490,7 +520,6 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            {/* Filter Summary */}
             <div className="apple-card p-8 bg-[#007AFF] text-white border-none relative overflow-hidden">
                <TrendingDown className="absolute right-[-20px] bottom-[-20px] w-40 h-40 opacity-10 rotate-[-15deg]" />
                <p className="text-[11px] font-bold uppercase tracking-widest opacity-70 mb-1">
@@ -503,7 +532,6 @@ const App: React.FC = () => {
                <h3 className="text-4xl font-extrabold">{formatCurrency(totalSpentFiltered)}</h3>
             </div>
 
-            {/* Input / Edit Form */}
             <div className={`apple-card p-8 border-none transition-colors duration-300 ${editingExpenseId ? 'bg-[#FFF8E6] border-2 border-[#FFD60A]' : 'bg-[#F9F9FB]'}`}>
                 {editingExpenseId && <p className="text-xs font-bold text-[#FF9500] uppercase mb-3">{t.update} Transaction</p>}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -545,12 +573,11 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Habits Tab (REDESIGNED & MOBILE FIXED) */}
+        {/* Habits Tab */}
         {activeTab === 'habits' && (
           <div className="space-y-8 fade-in">
-            {/* Input Form - Mobile Optimized */}
             <div className={`apple-card p-6 border-none flex flex-col md:flex-row gap-4 transition-colors duration-300 ${editingHabitId ? 'bg-[#FFF8E6]' : 'bg-[#F9F9FB]'}`}>
-              <div className="flex-1 flex flex-col md:flex-row gap-3"> {/* Changed to flex-col on mobile */}
+              <div className="flex-1 flex flex-col md:flex-row gap-3">
                   <input className="apple-input flex-1 bg-white" placeholder={t.habitsTitle} value={newHabit.name} onChange={e => setNewHabit({...newHabit, name: e.target.value})}/>
                   <input type="time" className="apple-input w-full md:w-32 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
               </div>
@@ -569,16 +596,21 @@ const App: React.FC = () => {
               {habits.map(h => {
                 const today = new Date().toLocaleDateString();
                 const done = h.completed_dates?.includes(today);
+                const isProcessing = processingHabits.includes(h.id);
+
                 return (
                   <div key={h.id} className={`apple-card p-5 flex flex-col md:flex-row items-start md:items-center justify-between group relative transition-all duration-300 ${editingHabitId === h.id ? 'ring-2 ring-[#007AFF]' : 'hover:shadow-md'}`}>
-                    {/* Left: Check & Info */}
-                    <div className="flex items-center space-x-4 w-full md:w-auto mb-4 md:mb-0 pr-12 md:pr-0"> {/* Added pr-12 for mobile to avoid button overlap */}
-                      <button onClick={() => toggleHabit(h)} className={`flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 transform active:scale-90 ${done ? 'bg-[#34C759] border-[#34C759] text-white shadow-sm' : 'border-[#E5E5EA] hover:border-[#34C759] text-transparent'}`}>
-                          <Check strokeWidth={4} size={20} />
+                    <div className="flex items-center space-x-4 w-full md:w-auto mb-4 md:mb-0 pr-12 md:pr-0">
+                      <button 
+                        onClick={() => toggleHabit(h)} 
+                        disabled={isProcessing}
+                        className={`flex-shrink-0 w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 transform active:scale-90 ${done ? 'bg-[#34C759] border-[#34C759] text-white shadow-sm' : 'border-[#E5E5EA] hover:border-[#34C759] text-transparent'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                          {isProcessing ? <Loader className="animate-spin" size={20} /> : <Check strokeWidth={4} size={20} />}
                       </button>
-                      <div className="min-w-0"> {/* min-w-0 ensures text truncation works */}
+                      <div className="min-w-0">
                         <h4 className={`text-[17px] font-bold text-[#1D1D1F] truncate ${done ? 'opacity-50 line-through decoration-2 decoration-[#D1D1D6]' : ''}`}>{h.name}</h4>
-                        <div className="flex flex-wrap items-center gap-2 mt-1.5"> {/* Changed to flex-wrap and gap-2 for better mobile handling */}
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             {h.reminder_time && (
                                 <span className="flex items-center text-[10px] font-bold bg-[#F2F2F7] text-[#86868B] px-2 py-0.5 rounded-md whitespace-nowrap">
                                     <Clock size={10} className="mr-1"/> {h.reminder_time}
@@ -591,15 +623,13 @@ const App: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Middle: Weekly Tracker Dots (7 Days) */}
-                    {/* Adjusted padding calculation: 48px (button) + 16px (gap) = 64px roughly. Using pl-[64px] or similar */}
                     <div className="flex items-center space-x-1.5 ml-0 md:ml-auto mr-0 md:mr-8 pl-[64px] md:pl-0 w-full md:w-auto overflow-x-auto hide-scrollbar">
                         {last7Days.map((d, i) => {
                            const dString = d.toLocaleDateString();
                            const isDone = h.completed_dates?.includes(dString);
                            const isToday = dString === today;
                            return (
-                               <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0"> {/* flex-shrink-0 prevents squashing */}
+                               <div key={i} className="flex flex-col items-center gap-1 flex-shrink-0">
                                    <div 
                                       className={`w-2.5 h-2.5 rounded-full transition-all ${isDone ? 'bg-[#34C759]' : 'bg-[#E5E5EA]'} ${isToday && !isDone ? 'ring-2 ring-[#34C759] ring-offset-1 bg-white' : ''}`} 
                                       title={dString}
@@ -609,7 +639,6 @@ const App: React.FC = () => {
                         })}
                     </div>
 
-                    {/* Right: Actions */}
                     <div className="absolute top-4 right-4 md:static md:flex items-center space-x-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                          <button onClick={() => startEditingHabit(h)} className="text-[#007AFF] p-2 hover:bg-blue-50 rounded-lg"><Pencil size={18}/></button>
                          <button onClick={() => deleteHabit(h.id)} className="text-[#D1D1D6] hover:text-red-500 p-2 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
@@ -620,10 +649,9 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Journal Tab (IMPROVED) */}
+        {/* Journal Tab */}
         {activeTab === 'notes' && (
           <div className="grid grid-cols-12 gap-0 md:gap-8 h-[calc(100vh-280px)] fade-in overflow-hidden">
-            {/* Sidebar List */}
             <div className={`col-span-12 md:col-span-4 flex flex-col space-y-3 overflow-y-auto pr-2 custom-scrollbar ${isMobileNoteEditing ? 'hidden md:flex' : 'flex'}`}>
               <button onClick={() => { setActiveNote({ title: '', content: '', user_id: currentUser.id } as any); setIsMobileNoteEditing(true); }} className="apple-button w-full py-4 mb-2 shadow-sm flex items-center justify-center"><Plus size={18} className="mr-2"/> {t.newEntry}</button>
               {notes.map(n => (
@@ -636,10 +664,7 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
-
-            {/* Editor Area */}
             <div className={`col-span-12 md:col-span-8 flex-col h-full apple-card p-0 border-none bg-white relative overflow-hidden shadow-sm ${isMobileNoteEditing ? 'flex' : 'hidden md:flex'}`}>
-               {/* Editor Toolbar */}
                <div className="flex items-center justify-between px-6 py-4 border-b border-[#F2F2F7] bg-white z-10">
                   <button onClick={() => setIsMobileNoteEditing(false)} className="md:hidden text-[#007AFF] font-bold flex items-center"><ArrowLeft size={20} className="mr-1" /> {t.back}</button>
                   <div className="flex items-center space-x-2 ml-auto">
@@ -653,12 +678,9 @@ const App: React.FC = () => {
                     )}
                   </div>
                </div>
-               
-               {/* Editor Content */}
                <div className="flex-1 overflow-y-auto p-6 md:p-10">
                  {activeNote && (
                     <div className="max-w-3xl mx-auto">
-                        {/* Metadata Header */}
                         {activeNote.id && (
                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mb-8 text-[11px] text-[#86868B] font-semibold uppercase tracking-widest">
                               <span className="flex items-center"><Calendar size={12} className="mr-1.5"/> {t.created}: {formatDateTime(activeNote.created_at)}</span>
@@ -667,27 +689,11 @@ const App: React.FC = () => {
                               )}
                            </div>
                         )}
-
-                        <input 
-                            className="text-3xl md:text-5xl font-extrabold bg-transparent outline-none mb-6 w-full text-[#1D1D1F] placeholder-gray-300" 
-                            placeholder={t.untitled} 
-                            value={activeNote?.title || ''} 
-                            onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} 
-                        />
-                        <textarea 
-                            className="w-full bg-transparent outline-none resize-none text-[17px] md:text-[19px] leading-relaxed text-[#424245] placeholder-gray-300 min-h-[400px]" 
-                            placeholder={t.placeholderJournal} 
-                            value={activeNote?.content || ''} 
-                            onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} 
-                        />
+                        <input className="text-3xl md:text-5xl font-extrabold bg-transparent outline-none mb-6 w-full text-[#1D1D1F] placeholder-gray-300" placeholder={t.untitled} value={activeNote?.title || ''} onChange={e => setActiveNote(prev => prev ? {...prev, title: e.target.value} : {title: e.target.value, content: '', user_id: currentUser.id} as any)} />
+                        <textarea className="w-full bg-transparent outline-none resize-none text-[17px] md:text-[19px] leading-relaxed text-[#424245] placeholder-gray-300 min-h-[400px]" placeholder={t.placeholderJournal} value={activeNote?.content || ''} onChange={e => setActiveNote(prev => prev ? {...prev, content: e.target.value} : {title: '', content: e.target.value, user_id: currentUser.id} as any)} />
                     </div>
                  )}
-                 {!activeNote && (
-                    <div className="h-full flex flex-col items-center justify-center text-[#D1D1D6]">
-                        <Pencil size={48} className="mb-4 opacity-20"/>
-                        <p className="text-[#86868B] font-medium">{t.beginThoughts}</p>
-                    </div>
-                 )}
+                 {!activeNote && (<div className="h-full flex flex-col items-center justify-center text-[#D1D1D6]"><Pencil size={48} className="mb-4 opacity-20"/><p className="text-[#86868B] font-medium">{t.beginThoughts}</p></div>)}
                </div>
             </div>
           </div>
