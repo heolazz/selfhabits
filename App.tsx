@@ -2,11 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './services/supabaseClient';
 import { 
   LayoutDashboard, Wallet, CheckCircle2, Plus, Trash2, ChevronRight, Pencil, Flame,
-  Search, Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
-  CreditCard, MoreHorizontal, Settings as SettingsIcon, ShieldCheck, Mail, Lock,
-  ArrowLeft, Bell, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown,
-  X, Check, CalendarDays
+  Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
+  CreditCard, MoreHorizontal, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown,
+  X, Check, CalendarDays, ArrowLeft
 } from 'lucide-react';
+// --- NEW IMPORTS FOR VISUALIZATION & GAMIFICATION ---
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import confetti from 'canvas-confetti';
 import { Expense, Habit, Note, AppTab, Language } from './types';
 
 // --- Translations ---
@@ -19,7 +21,7 @@ const translations = {
     recentActivity: "Recent activity", todaysGoals: "in A day", financeFIlter: "weekly",
     manage: "Manage", viewAll: "View All", logTransaction: "Log Transaction",
     desc: "Description", amount: "Amount", category: "Category", add: "Add",
-    habitsTitle: "Daily Goals", startTracking: "Start Tracking",
+    habitsTitle: "New Habit Goal", startTracking: "Start Tracking",
     myJournal: "My Journal", newEntry: "New Entry", untitled: "Untitled Entry",
     beginThoughts: "Start writing...", words: "Words", saved: "Saved",
     delete: "Delete", signOut: "Sign Out", language: "Language",
@@ -27,6 +29,7 @@ const translations = {
     theme: "Theme", placeholderJournal: "Reflect on your day, ideas, or dreams...",
     back: "Back", confirmDelete: "Delete this entry?", currency: "Rp",
     update: "Update", cancel: "Cancel", created: "Created", edited: "Edited",
+    spendingBreakdown: "Spending Breakdown", topCategory: "Top Category",
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -40,7 +43,7 @@ const translations = {
     recentActivity: "Aktivitas Terbaru", todaysGoals: "Target Hari Ini",
     manage: "Atur", viewAll: "Lihat Semua", logTransaction: "Catat Transaksi",
     desc: "Deskripsi", amount: "Jumlah", category: "Kategori", add: "Tambah",
-    habitsTitle: "Target Harian", startTracking: "Mulai Lacak",
+    habitsTitle: "Target Kebiasaan Baru", startTracking: "Mulai Lacak",
     myJournal: "Jurnal Saya", newEntry: "Catatan Baru", untitled: "Judul Kosong",
     beginThoughts: "Mulai menulis...", words: "Kata", saved: "Tersimpan",
     delete: "Hapus", signOut: "Keluar", language: "Bahasa",
@@ -48,12 +51,16 @@ const translations = {
     theme: "Tema", placeholderJournal: "Renungkan harimu, ide, atau mimpimu...",
     back: "Kembali", confirmDelete: "Hapus entri ini?", currency: "Rp",
     update: "Perbarui", cancel: "Batal", created: "Dibuat", edited: "Diedit",
+    spendingBreakdown: "Analisa Pengeluaran", topCategory: "Kategori Terbesar",
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
     }
   }
 };
+
+// --- CHART COLORS (Apple Style) ---
+const COLORS = ['#007AFF', '#34C759', '#FF9500', '#FF2D55', '#5856D6', '#AF52DE', '#8E8E93'];
 
 // --- Authentication Screen ---
 const AuthScreen: React.FC<{ lang: Language }> = ({ lang }) => {
@@ -158,6 +165,19 @@ const App: React.FC = () => {
     filteredExpenses.reduce((a, b) => a + b.amount, 0), 
   [filteredExpenses]);
 
+  // --- CHART DATA PREPARATION ---
+  const chartData = useMemo(() => {
+    const categoryTotals: Record<string, number> = {};
+    filteredExpenses.forEach(e => {
+      categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+    });
+    
+    // Convert to array for Recharts & sort by value desc
+    return Object.keys(categoryTotals)
+      .map(cat => ({ name: t.categories[cat as keyof typeof t.categories] || cat, value: categoryTotals[cat], key: cat }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredExpenses, t]);
+
   // --- Auth & Data Lifecycle ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -226,6 +246,21 @@ const App: React.FC = () => {
     });
   };
 
+  // --- HELPER FOR HABITS ---
+  const getLast7Days = () => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d);
+    }
+    return days;
+  };
+
+  const isHabitDoneOnDate = (habit: Habit, date: Date) => {
+    return habit.completed_dates?.includes(date.toLocaleDateString());
+  };
+
   // --- EXPENSE CRUD ---
   const handleAddExpense = async () => {
     if (newExpense.description && newExpense.amount) {
@@ -275,7 +310,7 @@ const App: React.FC = () => {
       }
   };
 
-  // --- HABIT CRUD ---
+  // --- HABIT CRUD & GAMIFICATION ---
   const handleAddHabit = async () => {
     if(newHabit.name) {
       if (editingHabitId) {
@@ -314,6 +349,16 @@ const App: React.FC = () => {
     const alreadyDone = h.completed_dates?.includes(today);
     const updatedDates = alreadyDone ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today];
     
+    // --- GAMIFICATION: Trigger Confetti if Marking as Done ---
+    if (!alreadyDone) {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.7 }, // Start from bottom-ish
+        colors: ['#007AFF', '#34C759', '#FF9500', '#FF2D55']
+      });
+    }
+
     const { data, error } = await supabase.from('habits').update({ 
       completed_dates: updatedDates, 
       streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1,
@@ -334,7 +379,6 @@ const App: React.FC = () => {
   const handleSaveNoteManual = async () => {
     if (!activeNote || !currentUser) return;
     setIsSaving(true);
-    // Note: created_at is handled by Supabase default now() on insert
     const noteData = { 
         title: activeNote.title || t.untitled, 
         content: activeNote.content || '', 
@@ -454,6 +498,59 @@ const App: React.FC = () => {
                <h3 className="text-4xl font-extrabold">{formatCurrency(totalSpentFiltered)}</h3>
             </div>
 
+            {/* --- NEW: SPENDING VISUALIZATION (CHART) --- */}
+            {chartData.length > 0 && (
+                <div className="apple-card p-6 flex flex-col md:flex-row items-center justify-between min-h-[250px] relative overflow-visible">
+                    <div className="absolute top-6 left-6 text-[11px] font-bold text-[#86868B] uppercase tracking-widest">{t.spendingBreakdown}</div>
+                    
+                    {/* Chart Area */}
+                    <div className="w-full md:w-1/2 h-[220px] relative mt-4 md:mt-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                        <Pie
+                            data={chartData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                        >
+                            {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
+                            ))}
+                        </Pie>
+                        <RechartsTooltip 
+                            formatter={(value: number) => formatCurrency(value)}
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        />
+                        </PieChart>
+                    </ResponsiveContainer>
+                    {/* Center Text */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-4">
+                         <span className="text-[10px] text-[#86868B] uppercase font-bold">{t.topCategory}</span>
+                         <span className="font-bold text-[#1D1D1F] mt-0.5">{chartData[0]?.name}</span>
+                    </div>
+                    </div>
+
+                    {/* Legend Area */}
+                    <div className="w-full md:w-1/2 mt-6 md:mt-0 md:pl-8 space-y-3">
+                    {chartData.slice(0, 4).map((entry, index) => (
+                        <div key={index} className="flex justify-between items-center text-sm">
+                            <div className="flex items-center">
+                            <div className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                            <span className="font-semibold text-[#1D1D1F]">{entry.name}</span>
+                            </div>
+                            <span className="text-[#86868B] font-medium text-xs bg-[#F5F5F7] px-2 py-1 rounded-md">{formatCurrency(entry.value)}</span>
+                        </div>
+                    ))}
+                    {chartData.length > 4 && (
+                        <p className="text-xs text-center text-[#86868B] pt-2 font-medium bg-[#F5F5F7] py-2 rounded-lg cursor-pointer hover:bg-[#E5E5EA] transition-colors">+ {chartData.length - 4} {lang === 'id' ? 'kategori lainnya' : 'categories more'}</p>
+                    )}
+                    </div>
+                </div>
+            )}
+
             {/* Input / Edit Form */}
             <div className={`apple-card p-8 border-none transition-colors duration-300 ${editingExpenseId ? 'bg-[#FFF8E6] border-2 border-[#FFD60A]' : 'bg-[#F9F9FB]'}`}>
                 {editingExpenseId && <p className="text-xs font-bold text-[#FF9500] uppercase mb-3">{t.update} Transaction</p>}
@@ -485,8 +582,8 @@ const App: React.FC = () => {
                   <div className="flex items-center space-x-6">
                       <p className="font-bold">-{formatCurrency(e.amount)}</p>
                       <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <button onClick={() => startEditingExpense(e)} className="text-[#007AFF] p-2 hover:bg-blue-50 rounded-lg"><Pencil size={16}/></button>
-                         <button onClick={() => deleteExpense(e.id)} className="text-[#D1D1D6] hover:text-red-500 p-2 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
+                          <button onClick={() => startEditingExpense(e)} className="text-[#007AFF] p-2 hover:bg-blue-50 rounded-lg"><Pencil size={16}/></button>
+                          <button onClick={() => deleteExpense(e.id)} className="text-[#D1D1D6] hover:text-red-500 p-2 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
                       </div>
                   </div>
                 </div>
@@ -496,46 +593,135 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Habits Tab */}
+        {/* Habits Tab (IMPROVED UI & GAMIFIED) */}
         {activeTab === 'habits' && (
-          <div className="space-y-8 fade-in">
-            {/* Input / Edit Form Habits */}
-            <div className={`apple-card p-8 border-none flex flex-col md:flex-row gap-4 transition-colors duration-300 ${editingHabitId ? 'bg-[#FFF8E6]' : 'bg-[#F9F9FB]'}`}>
-              <div className="flex-1 flex gap-4">
-                  <input className="apple-input flex-1 bg-white" placeholder={t.habitsTitle} value={newHabit.name} onChange={e => setNewHabit({...newHabit, name: e.target.value})}/>
-                  <input type="time" className="apple-input md:w-40 bg-white" value={newHabit.time} onChange={e => setNewHabit({...newHabit, time: e.target.value})}/>
-              </div>
-              
-              {editingHabitId ? (
-                   <div className="flex space-x-2">
-                       <button onClick={handleAddHabit} className="apple-button px-6 h-12 bg-[#34C759] hover:bg-[#2DA84E]">{t.update}</button>
-                       <button onClick={cancelEditHabit} className="apple-button px-4 h-12 bg-[#86868B] hover:bg-[#636366]">{t.cancel}</button>
-                   </div>
-              ) : (
-                  <button onClick={handleAddHabit} className="apple-button px-8 h-12">{t.startTracking}</button>
-              )}
+        <div className="space-y-8 fade-in pb-20">
+            
+            {/* 1. Input Section */}
+            <div className={`p-6 md:p-8 rounded-3xl transition-all duration-300 shadow-sm border border-[#F2F2F7] ${editingHabitId ? 'bg-[#FFF8E6] ring-2 ring-[#FFD60A]' : 'bg-white'}`}>
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="flex-1 w-full relative">
+                    <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#86868B]">
+                        <CheckCircle2 size={20} />
+                    </div>
+                    <input 
+                        className="w-full bg-[#F5F5F7] text-[#1D1D1F] font-semibold text-[16px] placeholder-[#86868B] rounded-2xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#007AFF] transition-all" 
+                        placeholder={t.habitsTitle} 
+                        value={newHabit.name} 
+                        onChange={e => setNewHabit({...newHabit, name: e.target.value})}
+                    />
+                </div>
+                
+                <div className="flex w-full md:w-auto gap-3">
+                    <input 
+                        type="time" 
+                        className="bg-[#F5F5F7] text-[#1D1D1F] font-bold rounded-2xl px-4 py-4 outline-none focus:ring-2 focus:ring-[#007AFF] transition-all w-full md:w-auto" 
+                        value={newHabit.time} 
+                        onChange={e => setNewHabit({...newHabit, time: e.target.value})}
+                    />
+                    {editingHabitId ? (
+                        <>
+                            <button onClick={handleAddHabit} className="bg-[#34C759] hover:bg-[#2DA84E] text-white font-bold rounded-2xl px-6 py-4 transition-all shadow-md active:scale-95"><Check size={20}/></button>
+                            <button onClick={cancelEditHabit} className="bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#86868B] font-bold rounded-2xl px-6 py-4 transition-all active:scale-95"><X size={20}/></button>
+                        </>
+                    ) : (
+                        <button onClick={handleAddHabit} className="bg-[#007AFF] hover:bg-[#0062CC] text-white font-bold rounded-2xl px-8 py-4 flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 whitespace-nowrap w-full md:w-auto">
+                            <Plus size={20} strokeWidth={3} />
+                            <span className="hidden md:inline">{t.add}</span>
+                        </button>
+                    )}
+                </div>
+            </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {habits.map(h => {
-                const done = h.completed_dates?.includes(new Date().toLocaleDateString());
+            {/* 2. Habits Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {habits.map(h => {
+                const todayStr = new Date().toLocaleDateString();
+                const doneToday = h.completed_dates?.includes(todayStr);
+                const weekDays = getLast7Days();
+
                 return (
-                  <div key={h.id} className={`apple-card p-6 flex items-center justify-between group transition-all ${editingHabitId === h.id ? 'ring-2 ring-[#007AFF]' : ''}`}>
-                    <div className="flex items-center space-x-5">
-                      <button onClick={() => toggleHabit(h)} className={`w-11 h-11 rounded-full border-2 flex items-center justify-center ${done ? 'bg-[#34C759] border-[#34C759] text-white' : 'border-[#D1D1D6] hover:border-[#34C759]'}`}><CheckCircle2 size={24}/></button>
-                      <div><h4 className={`text-[17px] font-bold ${done ? 'text-[#86868B] line-through' : ''}`}>{h.name}</h4><div className="flex items-center space-x-4 text-[12px] font-bold uppercase mt-1"><span className="text-[#FF9500] flex items-center"><Flame size={14} className="mr-1"/> {h.streak} Streak</span></div></div>
+                <div key={h.id} className={`group relative bg-white p-6 rounded-[24px] border border-[#F2F2F7] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-all duration-300 ${editingHabitId === h.id ? 'ring-2 ring-[#007AFF]' : ''}`}>
+                    
+                    {/* Header: Title & Edit Actions */}
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="flex-1 pr-4">
+                            <h4 className={`text-[18px] font-bold tracking-tight mb-1 ${doneToday ? 'text-[#86868B] line-through decoration-2' : 'text-[#1D1D1F]'}`}>
+                                {h.name}
+                            </h4>
+                            <div className="flex items-center space-x-3">
+                                {h.reminder_time && (
+                                    <span className="flex items-center text-[12px] font-semibold text-[#86868B] bg-[#F5F5F7] px-2 py-1 rounded-lg">
+                                        <Clock size={12} className="mr-1"/> {h.reminder_time}
+                                    </span>
+                                )}
+                                <span className="flex items-center text-[12px] font-bold text-[#FF9500]">
+                                    <Flame size={12} className="mr-1 fill-current"/> {h.streak}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex space-x-1">
+                            <button onClick={() => startEditingHabit(h)} className="p-2 rounded-full text-[#86868B] hover:bg-[#F2F2F7] hover:text-[#007AFF] transition-colors">
+                                <Pencil size={16} />
+                            </button>
+                            <button onClick={() => deleteHabit(h.id)} className="p-2 rounded-full text-[#86868B] hover:bg-[#FFF0F0] hover:text-[#FF3B30] transition-colors">
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <button onClick={() => startEditingHabit(h)} className="text-[#007AFF] p-2 hover:bg-blue-50 rounded-lg"><Pencil size={18}/></button>
-                         <button onClick={() => deleteHabit(h.id)} className="text-[#D1D1D6] hover:text-red-500 p-2 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+
+                    {/* Middle: Progress Visualization (Last 7 Days) */}
+                    <div className="flex justify-between items-center mb-6 px-1">
+                        {weekDays.map((date, idx) => {
+                            const isDone = isHabitDoneOnDate(h, date);
+                            const isToday = date.toDateString() === new Date().toDateString();
+                            const dayName = date.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'narrow' });
+                            
+                            return (
+                                <div key={idx} className="flex flex-col items-center gap-2">
+                                    <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-[#007AFF]' : 'text-[#C7C7CC]'}`}>
+                                        {dayName}
+                                    </span>
+                                    <div className={`w-2.5 h-2.5 rounded-full transition-all duration-500 ${isDone ? 'bg-[#34C759] scale-110' : 'bg-[#E5E5EA]'}`}></div>
+                                </div>
+                            )
+                        })}
                     </div>
-                  </div>
-              )})}
+
+                    {/* Footer: Main Toggle Button */}
+                    <button 
+                        onClick={() => toggleHabit(h)} 
+                        className={`w-full py-3.5 rounded-2xl flex items-center justify-center font-bold text-[15px] transition-all active:scale-[0.98] ${
+                            doneToday 
+                            ? 'bg-[#F2F2F7] text-[#86868B] hover:bg-[#E5E5EA]' 
+                            : 'bg-[#1D1D1F] text-white hover:bg-[#000] shadow-lg shadow-gray-200'
+                        }`}
+                    >
+                        {doneToday ? (
+                            <><Check size={18} className="mr-2" strokeWidth={3}/> {lang === 'id' ? 'Selesai' : 'Completed'}</>
+                        ) : (
+                            <><CheckCircle2 size={18} className="mr-2"/> {lang === 'id' ? 'Tandai Selesai' : 'Mark Done'}</>
+                        )}
+                    </button>
+
+                </div>
+                )
+            })}
+            
+            {habits.length === 0 && (
+                <div className="col-span-full py-12 flex flex-col items-center justify-center text-center opacity-50 dashed border-2 border-[#E5E5EA] rounded-3xl">
+                    <Flame size={48} className="text-[#E5E5EA] mb-4" />
+                    <p className="font-semibold text-[#86868B]">{lang === 'id' ? 'Belum ada kebiasaan. Mulai sekarang!' : 'No habits yet. Start tracking today!'}</p>
+                </div>
+            )}
             </div>
-          </div>
+        </div>
         )}
 
-        {/* Journal Tab (IMPROVED) */}
+        {/* Journal Tab */}
         {activeTab === 'notes' && (
           <div className="grid grid-cols-12 gap-0 md:gap-8 h-[calc(100vh-280px)] fade-in overflow-hidden">
             {/* Sidebar List */}
