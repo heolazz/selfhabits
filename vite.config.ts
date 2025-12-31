@@ -15,7 +15,7 @@ export default defineConfig({
         theme_color: '#ffffff',
         icons: [
           {
-            src: 'logo.png', // Pastikan nama file sama dengan di public folder
+            src: 'logo.png',
             sizes: '192x192',
             type: 'image/png'
           },
