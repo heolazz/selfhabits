@@ -157,12 +157,15 @@ const AuthScreen: React.FC<{ lang: Language }> = ({ lang }) => {
     <div className="min-h-screen flex items-center justify-center bg-[var(--bg-body)] px-6">
       <GlobalStyles />
       <div className="w-full max-w-[360px] animate-in fade-in">
-        <div className="flex flex-col items-center mb-12 text-center">
-          <div className="w-12 h-12 bg-[var(--primary)] rounded-xl flex items-center justify-center text-white mb-6 shadow-xl shadow-blue-500/20">
-             <Zap size={24} fill="currentColor" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-main)]">Zenith</h1>
-          <p className="text-[var(--text-muted)] text-sm mt-2">{lang === 'id' ? 'Simpel. Elegan. Terorganisir.' : 'Simple. Elegant. Organized.'}</p>
+        <div className="flex flex-col items-center mb-10 text-center">
+          <img 
+            src="/logo.png" 
+            alt="Zenith Logo" 
+            className="w-20 h-20 mb-6 rounded-[20px] shadow-2xl shadow-blue-500/20 hover:scale-105 transition-transform duration-500"
+          />
+          
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-main)]">Zenith<span className="text-[var(--primary)]">.</span></h1>
+          <p className="text-[var(--text-muted)] text-sm font-medium mt-2">{lang === 'id' ? 'Simpel. Elegan. Terorganisir.' : 'Simple. Elegant. Organized.'}</p>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
