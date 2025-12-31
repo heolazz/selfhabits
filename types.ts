@@ -1,35 +1,60 @@
+// types.ts
 
 export interface User {
   id: string;
-  name: string;
-  email: string;
-  password?: string;
+  full_name?: string; 
+  email?: string;
 }
 
 export interface Expense {
   id: string;
+  user_id: string;
   description: string;
   amount: number;
-  date: string;
-  category: 'Food' | 'Transport' | 'Shopping' | 'Bills' | 'Health' | 'Entertainment' | 'Others';
+  date: string; 
+  category: string;
+  created_at?: string;
 }
 
 export interface Habit {
   id: string;
+  user_id: string;
   name: string;
   streak: number;
-  completedDates: string[]; // ISO Strings
-  category: 'health' | 'productivity' | 'learning' | 'spirituality';
-  reminderTime?: string; // Format: "HH:mm"
+  completed_dates: string[]; 
+  reminder_time?: string;   
+  created_at?: string;
 }
 
 export interface Note {
   id: string;
+  user_id: string;
   title: string;
   content: string;
-  updatedAt: string;
+  updated_at?: string;       
+  created_at?: string;
 }
+
+
+export interface Budget {
+  id: string;
+  user_id: string;
+  category: string;
+  amount: number;
+  month_year: string; 
+}
+
+export interface Saving {
+  id: string;
+  user_id: string;
+  name: string;
+  target: number;
+  current: number;
+  created_at?: string;
+}
+
+// --- Tipe Aplikasi ---
 
 export type AppTab = 'dashboard' | 'finance' | 'habits' | 'notes' | 'settings';
 export type Language = 'en' | 'id';
-export type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark';
