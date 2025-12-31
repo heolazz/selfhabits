@@ -566,27 +566,37 @@ const App: React.FC = () => {
         )}
 
         {/* --- Finance Tab --- */}
-          {activeTab === 'finance' && (
-            <div className="space-y-6 fade-in">
-              
-              {/* --- TAMBAHAN HEADER BARU DI SINI --- */}
-              <div className="mb-2 px-1">
-                <h3 className="text-2xl font-bold text-[var(--text-main)] tracking-tight">
-                  {financeSubTab === 'expenses' ? (lang === 'id' ? 'Arus Kas' : 'Cash Flow') : 
-                  financeSubTab === 'savings' ? (lang === 'id' ? 'Tabungan' : 'Savings') : 
-                  (lang === 'id' ? 'Perencanaan' : 'Budgeting')}
-                </h3>
-                <p className="text-[var(--text-muted)] text-sm font-medium mt-1">
-                  {financeSubTab === 'expenses' 
-                      ? (lang === 'id' ? 'Pantau pemasukan dan pengeluaran harianmu.' : 'Track your daily income and expenses.')
-                      : (financeSubTab === 'savings' 
-                          ? (lang === 'id' ? 'Wujudkan impianmu sedikit demi sedikit.' : 'Achieve your dreams step by step.')
-                          : (lang === 'id' ? 'Atur batasan agar keuangan tetap sehat.' : 'Set limits to keep your finances healthy.')
-                        )
-                  }
-                </p>
-              </div>
+        {activeTab === 'finance' && (
+          <div className="space-y-6 fade-in">
+            
+            {/* 1. Header Deskripsi */}
+            <div className="mb-2 px-1">
+              <h3 className="text-2xl font-bold text-[var(--text-main)] tracking-tight">
+                {financeSubTab === 'expenses' ? (lang === 'id' ? 'Arus Kas' : 'Cash Flow') : 
+                 financeSubTab === 'savings' ? (lang === 'id' ? 'Tabungan' : 'Savings') : 
+                 (lang === 'id' ? 'Perencanaan' : 'Budgeting')}
+              </h3>
+              <p className="text-[var(--text-muted)] text-sm font-medium mt-1">
+                {financeSubTab === 'expenses' 
+                    ? (lang === 'id' ? 'Pantau pemasukan dan pengeluaran harianmu.' : 'Track your daily income and expenses.')
+                    : (financeSubTab === 'savings' 
+                        ? (lang === 'id' ? 'Wujudkan impianmu sedikit demi sedikit.' : 'Achieve your dreams step by step.')
+                        : (lang === 'id' ? 'Atur batasan agar keuangan tetap sehat.' : 'Set limits to keep your finances healthy.')
+                      )
+                }
+              </p>
+            </div>
 
+            {/* 2. Tombol Navigasi Sub-Tab (SUDAH DIKEMBALIKAN) */}
+            <div className="flex bg-[var(--bg-input)] p-1 rounded-xl w-full max-w-sm mx-auto mb-8">
+              {(['expenses', 'savings', 'budget'] as const).map((tab) => (
+                <button key={tab} onClick={() => setFinanceSubTab(tab)} className={`flex-1 py-1.5 text-[13px] font-semibold rounded-[10px] transition-all flex items-center justify-center gap-2 ${financeSubTab === tab ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}>
+                   {t.subTabs[tab]}
+                </button>
+              ))}
+            </div>
+
+            {/* 3. Konten Expenses */}
             {financeSubTab === 'expenses' && (
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -604,31 +614,29 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Banner Gradient Baru */}
                 <div className="apple-card p-6 sm:p-8 bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white border-none shadow-lg shadow-blue-500/25 relative overflow-hidden group">
-    {/* Dekorasi Background */}
-    <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-16 -mt-32 pointer-events-none transform group-hover:scale-110 transition-transform duration-700"></div>
-    
-    <div className="relative z-10 flex flex-col justify-between h-full">
-        <div className="flex items-center justify-between mb-2">
-            <p className="text-blue-100 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-                <Wallet size={14} className="opacity-80" />
-                {financeFilter === 'daily' ? t.today : (financeFilter === 'weekly' ? t.lastSevenDays : t.thisMonth)}
-            </p>
-            <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm">
-                {filteredExpenses.length} {t.records}
-            </span>
-        </div>
-
-        <div>
-            <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm my-1">
-                {formatCurrency(totalSpentFiltered || 0)}
-            </h3>
-            <p className="text-blue-100 text-xs font-medium opacity-90">
-                {lang === 'id' ? 'Total Pengeluaran' : 'Total Expenses'}
-            </p>
-        </div>
-    </div>
-</div>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-16 -mt-32 pointer-events-none transform group-hover:scale-110 transition-transform duration-700"></div>
+                    <div className="relative z-10 flex flex-col justify-between h-full">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-blue-100 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                                <Wallet size={14} className="opacity-80" />
+                                {financeFilter === 'daily' ? t.today : (financeFilter === 'weekly' ? t.lastSevenDays : t.thisMonth)}
+                            </p>
+                            <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm">
+                                {filteredExpenses.length} {t.records}
+                            </span>
+                        </div>
+                        <div>
+                            <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm my-1">
+                                {formatCurrency(totalSpentFiltered || 0)}
+                            </h3>
+                            <p className="text-blue-100 text-xs font-medium opacity-90">
+                                {lang === 'id' ? 'Total Pengeluaran' : 'Total Expenses'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
                 {chartData.length > 0 && (
                     <div className="apple-card p-6 flex flex-col md:flex-row items-center gap-8">
@@ -636,7 +644,6 @@ const App: React.FC = () => {
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                             <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                {/* Using Vibrant CHART_COLORS */}
                                 {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="var(--bg-card)" strokeWidth={2} />))}
                             </Pie>
                             <RechartsTooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '12px', border: 'none', background: 'var(--bg-card)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize:'12px', fontWeight: 600 }} />
@@ -693,6 +700,7 @@ const App: React.FC = () => {
               </div>
             )}
 
+            {/* 4. Konten Savings */}
             {financeSubTab === 'savings' && (
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
                 <div className="flex justify-between items-center">
@@ -735,6 +743,7 @@ const App: React.FC = () => {
               </div>
             )}
 
+            {/* 5. Konten Budget */}
             {financeSubTab === 'budget' && (
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
                 <div className="flex justify-between items-center">
