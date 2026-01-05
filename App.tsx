@@ -5,7 +5,7 @@ import {
   Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
   CreditCard, MoreHorizontal, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown,
   X, Check, CalendarDays, ArrowLeft, Target, BarChart3, PiggyBank, TrendingUp, Trophy, Download, Smartphone,
-  PieChart as PieIcon, Coins, Sun, Moon, ArrowUpRight, Zap, Grip, Receipt
+  PieChart as PieIcon, Coins, Sun, Moon, ArrowUpRight, Zap, Grip, Receipt, Settings2, Flashlight, Search, FileDown, Repeat, CalendarCheck, List
 } from 'lucide-react';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip,
@@ -14,7 +14,7 @@ import {
 import confetti from 'canvas-confetti';
 import { Expense, Habit, Note, AppTab, Language, Budget, Saving, Theme } from './types';
 
-// --- CSS Variables Injection (Modern Theme) ---
+// --- CSS Variables Injection ---
 const GlobalStyles = () => (
   <style>{`
     :root {
@@ -28,7 +28,7 @@ const GlobalStyles = () => (
       --success: #10B981;
       --danger: #EF4444;
       --warning: #F59E0B;
-      --primary: #2563EB; /* Blue-600 */
+      --primary: #2563EB;
     }
     .dark {
       --bg-body: #09090b;
@@ -41,7 +41,7 @@ const GlobalStyles = () => (
       --success: #34D399;
       --danger: #F87171;
       --warning: #FBBF24;
-      --primary: #3B82F6; /* Blue-500 */
+      --primary: #3B82F6;
     }
     body { background-color: var(--bg-body); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     .apple-card { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 24px; transition: all 0.3s ease; }
@@ -82,6 +82,10 @@ const translations = {
     installed: "App Installed",
     theme: "Appearance", created: "Created", edited: "Edited",
     subTabs: { expenses: "Expenses", savings: "Savings", budget: "Budget" },
+    quickActions: "Quick Actions", manage: "Manage", addQuick: "Add Shortcut",
+    subscriptions: "Subscriptions", dueToday: "Due Today", pay: "Pay", noDue: "No bills due today",
+    search: "Search transactions...", export: "Export CSV",
+    viewMode: { list: "List View", calendar: "Calendar View" },
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -108,6 +112,10 @@ const translations = {
     installed: "Aplikasi Terinstall",
     theme: "Tampilan", created: "Dibuat", edited: "Diedit",
     subTabs: { expenses: "Pengeluaran", savings: "Tabungan", budget: "Anggaran" },
+    quickActions: "Aksi Cepat", manage: "Atur", addQuick: "Tambah Shortcut",
+    subscriptions: "Langganan", dueToday: "Bayar Hari Ini", pay: "Bayar", noDue: "Tidak ada tagihan hari ini",
+    search: "Cari transaksi...", export: "Unduh CSV",
+    viewMode: { list: "Tampilan List", calendar: "Kalender" },
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
@@ -115,17 +123,10 @@ const translations = {
   }
 };
 
-// --- COLOR PALETTE (VIBRANT & DISTINCT) ---
-const CHART_COLORS = [
-  '#3B82F6', // Blue
-  '#10B981', // Emerald
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#8B5CF6', // Violet
-  '#EC4899', // Pink
-  '#06B6D4', // Cyan
-  '#6366F1', // Indigo
-];
+const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#6366F1'];
+
+interface QuickAction { id: string; label: string; amount: number; category: string; }
+interface Subscription { id: string; label: string; amount: number; category: string; dayOfMonth: number; }
 
 // --- Auth Screen ---
 const AuthScreen: React.FC<{ lang: Language }> = ({ lang }) => {
@@ -135,6 +136,11 @@ const AuthScreen: React.FC<{ lang: Language }> = ({ lang }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (error) setError(error.message);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,12 +164,7 @@ const AuthScreen: React.FC<{ lang: Language }> = ({ lang }) => {
       <GlobalStyles />
       <div className="w-full max-w-[360px] animate-in fade-in">
         <div className="flex flex-col items-center mb-10 text-center">
-          <img 
-            src="/logo.png" 
-            alt="Zenith Logo" 
-            className="w-20 h-20 mb-6 rounded-[20px] shadow-2xl shadow-blue-500/20 hover:scale-105 transition-transform duration-500"
-          />
-          
+          <img src="/logo.png" alt="Zenith Logo" className="w-20 h-20 mb-6 rounded-[20px] shadow-2xl shadow-blue-500/20 hover:scale-105 transition-transform duration-500" />
           <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-main)]">Zenith<span className="text-[var(--primary)]">.</span></h1>
           <p className="text-[var(--text-muted)] text-sm font-medium mt-2">{lang === 'id' ? 'Simpel. Elegan. Terorganisir.' : 'Simple. Elegant. Organized.'}</p>
         </div>
@@ -177,6 +178,16 @@ const AuthScreen: React.FC<{ lang: Language }> = ({ lang }) => {
               {loading ? '...' : isLogin ? (lang === 'id' ? 'Masuk' : 'Sign In') : (lang === 'id' ? 'Buat Akun' : 'Create Account')}
             </button>
         </form>
+
+        <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border)]"></div></div>
+            <div className="relative flex justify-center text-xs uppercase"><span className="bg-[var(--bg-body)] px-2 text-[var(--text-muted)]">Or</span></div>
+        </div>
+
+        <button onClick={handleGoogleLogin} className="w-full py-3.5 border border-[var(--border)] rounded-xl flex items-center justify-center space-x-2 hover:bg-[var(--bg-input)] transition-all">
+            <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            <span className="text-sm font-semibold text-[var(--text-main)]">Continue with Google</span>
+        </button>
         
         <div className="mt-8 text-center">
           <button onClick={() => setIsLogin(!isLogin)} className="text-[var(--text-muted)] text-xs hover:text-[var(--primary)] transition-colors">
@@ -208,11 +219,26 @@ const App: React.FC = () => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [savings, setSavings] = useState<Saving[]>([]);
 
+  // Quick Actions & Subscriptions (LocalStorage)
+  const [quickActions, setQuickActions] = useState<QuickAction[]>(() => {
+    const saved = localStorage.getItem('zenith_quick_actions');
+    return saved ? JSON.parse(saved) : [{ id: '1', label: 'Busway', amount: 3500, category: 'Transport' }];
+  });
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
+    const saved = localStorage.getItem('zenith_subscriptions');
+    return saved ? JSON.parse(saved) : [{ id: 's1', label: 'Netflix', amount: 186000, category: 'Entertainment', dayOfMonth: 25 }];
+  });
+  const [isEditingQuickActions, setIsEditingQuickActions] = useState(false);
+  const [isEditingSubscriptions, setIsEditingSubscriptions] = useState(false);
+  const [newQuickAction, setNewQuickAction] = useState({ label: '', amount: '', category: 'Transport' });
+  const [newSubscription, setNewSubscription] = useState({ label: '', amount: '', category: 'Bills', day: '' });
+
+  // Search & Filter & View Mode
+  const [searchQuery, setSearchQuery] = useState('');
   const [financeFilter, setFinanceFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+  const [financeViewMode, setFinanceViewMode] = useState<'list' | 'calendar'>('list'); 
   
-  // FIX: Initialize with Local Date String to match user's day correctly (avoids UTC issue)
   const [selectedDate, setSelectedDate] = useState(() => {
-     // Returns YYYY-MM-DD in local time
      const offset = new Date().getTimezoneOffset() * 60000;
      return new Date(Date.now() - offset).toISOString().split('T')[0];
   });
@@ -231,20 +257,13 @@ const App: React.FC = () => {
   const t = translations[lang];
 
   // --- Effects ---
-  useEffect(() => {
-    localStorage.setItem('zenith_lang', lang);
-    localStorage.setItem('zenith_theme', theme);
-    document.documentElement.className = theme;
-  }, [lang, theme]);
+  useEffect(() => { localStorage.setItem('zenith_lang', lang); localStorage.setItem('zenith_theme', theme); document.documentElement.className = theme; }, [lang, theme]);
+  useEffect(() => { localStorage.setItem('zenith_quick_actions', JSON.stringify(quickActions)); }, [quickActions]);
+  useEffect(() => { localStorage.setItem('zenith_subscriptions', JSON.stringify(subscriptions)); }, [subscriptions]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setCurrentUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUser(session?.user ?? null);
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => { setCurrentUser(session?.user ?? null); setAuthLoading(false); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setCurrentUser(session?.user ?? null); });
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); });
     if (window.matchMedia('(display-mode: standalone)').matches) setIsAppInstalled(true);
   }, []);
@@ -267,203 +286,164 @@ const App: React.FC = () => {
     if (sav.data) setSavings(sav.data);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setExpenses([]); setHabits([]); setNotes([]); setBudgets([]); setSavings([]); setActiveTab('dashboard');
-  };
+  const handleLogout = async () => { await supabase.auth.signOut(); setExpenses([]); setHabits([]); setNotes([]); setBudgets([]); setSavings([]); setActiveTab('dashboard'); };
 
   // --- Helpers ---
-  const formatCurrency = (val: number) => {
-  // Pastikan val adalah number, jika NaN/null ganti jadi 0
-  const safeVal = val || 0; 
-  return new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', { 
-      style: 'currency', 
-      currency: 'IDR', 
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0 
-  }).format(safeVal).replace('IDR', 'Rp');
-};
+  const formatCurrency = (val: number) => { const safeVal = val || 0; return new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(safeVal).replace('IDR', 'Rp'); };
   
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return t.hello;
-    if (hour < 18) return t.helloAfternoon;
-    return t.helloEvening;
-  }
+  // SHORT FORMAT CURRENCY (e.g. 15k)
+  const formatShortCurrency = (val: number) => { 
+      if (val >= 1000000) return (val / 1000000).toFixed(1) + 'm';
+      if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
+      return val.toString(); 
+  }; 
 
+  const getGreeting = () => { const hour = new Date().getHours(); if (hour < 12) return t.hello; if (hour < 18) return t.helloAfternoon; return t.helloEvening; }
+  
   const navigateDate = (direction: 'next' | 'prev') => {
     const current = new Date(selectedDate);
     if (financeFilter === 'daily') current.setDate(current.getDate() + (direction === 'next' ? 1 : -1));
     else if (financeFilter === 'weekly') current.setDate(current.getDate() + (direction === 'next' ? 7 : -7));
-    else if (financeFilter === 'monthly') current.setMonth(current.getMonth() + (direction === 'next' ? 1 : -1));
-    // Use ISO string split to ensure YYYY-MM-DD format consistency
+    else current.setMonth(current.getMonth() + (direction === 'next' ? 1 : -1)); 
+    
     const offset = current.getTimezoneOffset() * 60000;
-    const localISODate = new Date(current.getTime() - offset).toISOString().split('T')[0];
-    setSelectedDate(localISODate);
+    setSelectedDate(new Date(current.getTime() - offset).toISOString().split('T')[0]);
   };
 
-  const getCategoryIcon = (cat: string) => {
-    const icons: any = { Food: <Coffee size={18}/>, Transport: <Car size={18}/>, Shopping: <ShoppingBag size={18}/>, Bills: <CreditCard size={18}/>, Health: <Heart size={18}/>, Entertainment: <Gamepad2 size={18}/> };
-    return icons[cat] || <MoreHorizontal size={18}/>;
-  };
-
+  const getCategoryIcon = (cat: string) => { const icons: any = { Food: <Coffee size={18}/>, Transport: <Car size={18}/>, Shopping: <ShoppingBag size={18}/>, Bills: <CreditCard size={18}/>, Health: <Heart size={18}/>, Entertainment: <Gamepad2 size={18}/> }; return icons[cat] || <MoreHorizontal size={18}/>; };
   const formatShortDate = (iso: string) => new Date(iso).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' });
 
   // --- Logic Computations ---
   const filteredExpenses = useMemo(() => {
+    if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return expenses.filter(e => {
+            const matchDesc = e.description.toLowerCase().includes(query);
+            const matchCatRaw = e.category.toLowerCase().includes(query);
+            const catLabel = t.categories[e.category as keyof typeof t.categories] || '';
+            const matchCatLabel = (catLabel as string).toLowerCase().includes(query);
+            return matchDesc || matchCatRaw || matchCatLabel;
+        });
+    }
+
     const target = new Date(selectedDate);
-    
     return expenses.filter(e => {
       const itemDate = new Date(e.date);
-      
-      // Compare based on local date string to avoid UTC mismatches
-      if (financeFilter === 'daily') {
-         return itemDate.toDateString() === target.toDateString();
-      }
-      
+      if (financeFilter === 'daily') return itemDate.toDateString() === target.toDateString();
       if (financeFilter === 'weekly') { 
-         const diffTime = Math.abs(target.getTime() - itemDate.getTime());
-         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-         // Check if within same week range logic can be complex, simplifying to +/- 3 days from target or simple diff
-         // Simple 7 day lookback from target date:
          const diff = (target.getTime() - itemDate.getTime()) / (86400000); 
          return diff >= 0 && diff < 7; 
       }
-      
+      // Default: Monthly
       return itemDate.getMonth() === target.getMonth() && itemDate.getFullYear() === target.getFullYear();
     });
-  }, [expenses, financeFilter, selectedDate]);
+  }, [expenses, financeFilter, selectedDate, searchQuery, t]);
 
   const totalSpentFiltered = useMemo(() => filteredExpenses.reduce((a, b) => a + b.amount, 0), [filteredExpenses]);
   const totalSpentGlobal = useMemo(() => expenses.reduce((a, b) => a + b.amount, 0), [expenses]);
+  const chartData = useMemo(() => { const totals: Record<string, number> = {}; filteredExpenses.forEach(e => totals[e.category] = (totals[e.category] || 0) + e.amount); return Object.keys(totals).map(cat => ({ name: t.categories[cat as keyof typeof t.categories] || cat, value: totals[cat] })).sort((a, b) => b.value - a.value); }, [filteredExpenses, t]);
+  const weeklyTrendData = useMemo(() => { return [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); const dateStr = d.toDateString(); return { name: d.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'short' }), amount: expenses.filter(e => new Date(e.date).toDateString() === dateStr).reduce((s, e) => s + e.amount, 0) }; }); }, [expenses, lang]);
+  const budgetAnalysis = useMemo(() => { const target = new Date(selectedDate); return Object.keys(t.categories).map(cat => { const spent = expenses.filter(e => { const d = new Date(e.date); return d.getMonth() === target.getMonth() && d.getFullYear() === target.getFullYear() && e.category === cat; }).reduce((s, e) => s + e.amount, 0); const budget = budgets.find(b => b.category === cat)?.amount || 0; return { category: cat, spent, budget, percent: budget > 0 ? (spent / budget) * 100 : 0 }; }).sort((a, b) => b.percent - a.percent); }, [expenses, budgets, t.categories, selectedDate]);
 
-  const chartData = useMemo(() => {
-    const totals: Record<string, number> = {};
-    filteredExpenses.forEach(e => totals[e.category] = (totals[e.category] || 0) + e.amount);
-    return Object.keys(totals).map(cat => ({ name: t.categories[cat as keyof typeof t.categories] || cat, value: totals[cat] })).sort((a, b) => b.value - a.value);
-  }, [filteredExpenses, t]);
-
-  const weeklyTrendData = useMemo(() => {
-    return [...Array(7)].map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      // Using local date string matching
-      const dateStr = d.toDateString();
-      return {
-        name: d.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'short' }),
-        amount: expenses.filter(e => new Date(e.date).toDateString() === dateStr).reduce((s, e) => s + e.amount, 0)
-      };
-    });
-  }, [expenses, lang]);
-
-  const budgetAnalysis = useMemo(() => {
-    const target = new Date(selectedDate);
-    return Object.keys(t.categories).map(cat => {
-      const spent = expenses.filter(e => { const d = new Date(e.date); return d.getMonth() === target.getMonth() && d.getFullYear() === target.getFullYear() && e.category === cat; }).reduce((s, e) => s + e.amount, 0);
-      const budget = budgets.find(b => b.category === cat)?.amount || 0;
-      return { category: cat, spent, budget, percent: budget > 0 ? (spent / budget) * 100 : 0 };
-    }).sort((a, b) => b.percent - a.percent);
-  }, [expenses, budgets, t.categories, selectedDate]);
-
-  // --- CRUD Handlers ---
-  const handleAddExpense = async () => {
-    if (newExpense.description && newExpense.amount) {
-      if (editingExpenseId) {
-        const { data } = await supabase.from('expenses').update({ description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, updated_at: new Date().toISOString() }).eq('id', editingExpenseId).select();
-        if (data) { setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e)); setEditingExpenseId(null); setNewExpense({ description: '', amount: '', category: 'Others' }); }
-      } else {
-        const { data } = await supabase.from('expenses').insert([{ description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, user_id: currentUser.id, date: new Date().toISOString() }]).select();
-        if (data) { setExpenses([data[0], ...expenses]); setNewExpense({ description: '', amount: '', category: 'Others' }); }
-      }
-    }
+  // --- Actions ---
+  const handleAddExpense = async () => { if (newExpense.description && newExpense.amount) { if (editingExpenseId) { const { data } = await supabase.from('expenses').update({ description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, updated_at: new Date().toISOString() }).eq('id', editingExpenseId).select(); if (data) { setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e)); setEditingExpenseId(null); setNewExpense({ description: '', amount: '', category: 'Others' }); } } else { const { data } = await supabase.from('expenses').insert([{ description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, user_id: currentUser.id, date: new Date().toISOString() }]).select(); if (data) { setExpenses([data[0], ...expenses]); setNewExpense({ description: '', amount: '', category: 'Others' }); } } } };
+  
+  const handleQuickActionClick = async (action: QuickAction | Subscription) => {
+      confetti({ particleCount: 40, spread: 40, origin: { y: 0.6 }, colors: ['#2563EB', '#ffffff'], disableForReducedMotion: true, ticks: 100, gravity: 2, scalar: 0.8 });
+      const { data } = await supabase.from('expenses').insert([{ description: action.label, amount: action.amount, category: action.category, user_id: currentUser.id, date: new Date().toISOString() }]).select();
+      if (data) setExpenses([data[0], ...expenses]); 
   };
+
+  const handleExportCSV = () => {
+    const headers = ["Tanggal", "Waktu", "Kategori", "Deskripsi", "Jumlah (IDR)"];
+    const rows = filteredExpenses.map(e => {
+      const dateObj = new Date(e.date);
+      const date = dateObj.toLocaleDateString('id-ID'); 
+      const time = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      const category = t.categories[e.category as keyof typeof t.categories] || e.category;
+      const description = `"${e.description.replace(/"/g, '""')}"`;
+      const amount = e.amount;
+      return [date, time, category, description, amount].join(";");
+    });
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(";"), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `zenith_laporan_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleAddQuickAction = () => { if (newQuickAction.label && newQuickAction.amount) { setQuickActions([...quickActions, { id: Date.now().toString(), label: newQuickAction.label, amount: parseFloat(newQuickAction.amount), category: newQuickAction.category }]); setNewQuickAction({ label: '', amount: '', category: 'Transport' }); } };
+  const deleteQuickAction = (id: string) => setQuickActions(quickActions.filter(q => q.id !== id));
+  
+  const handleAddSubscription = () => { if (newSubscription.label && newSubscription.amount && newSubscription.day) { setSubscriptions([...subscriptions, { id: Date.now().toString(), label: newSubscription.label, amount: parseFloat(newSubscription.amount), category: newSubscription.category, dayOfMonth: parseInt(newSubscription.day) }]); setNewSubscription({ label: '', amount: '', category: 'Bills', day: '' }); } };
+  const deleteSubscription = (id: string) => setSubscriptions(subscriptions.filter(s => s.id !== id));
 
   const deleteExpense = async (id: string) => { if (!(await supabase.from('expenses').delete().eq('id', id)).error) setExpenses(expenses.filter(x => x.id !== id)); };
-
-  const handleAddHabit = async () => {
-    if(newHabit.name) {
-      if (editingHabitId) {
-        const { data } = await supabase.from('habits').update({ name: newHabit.name, reminder_time: newHabit.time }).eq('id', editingHabitId).select();
-        if (data) { setHabits(habits.map(h => h.id === editingHabitId ? data[0] : h)); setEditingHabitId(null); setNewHabit({ name: '', time: '' }); }
-      } else {
-        const { data } = await supabase.from('habits').insert([{ name: newHabit.name, streak: 0, completed_dates: [], reminder_time: newHabit.time, user_id: currentUser.id }]).select();
-        if (data) { setHabits([data[0], ...habits]); setNewHabit({name:'', time:''}); }
-      }
-    }
-  };
-
-  const toggleHabit = async (h: Habit) => {
-    const today = new Date().toLocaleDateString();
-    const alreadyDone = h.completed_dates?.includes(today);
-    const updatedDates = alreadyDone ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today];
-    if (!alreadyDone) confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 }, colors: ['#10B981', '#3B82F6'] });
-    const { data } = await supabase.from('habits').update({ completed_dates: updatedDates, streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1 }).eq('id', h.id).select();
-    if (data) setHabits(habits.map(item => item.id === h.id ? data[0] : item));
-  };
-
+  const handleAddHabit = async () => { if(newHabit.name) { if (editingHabitId) { const { data } = await supabase.from('habits').update({ name: newHabit.name, reminder_time: newHabit.time }).eq('id', editingHabitId).select(); if (data) { setHabits(habits.map(h => h.id === editingHabitId ? data[0] : h)); setEditingHabitId(null); setNewHabit({ name: '', time: '' }); } } else { const { data } = await supabase.from('habits').insert([{ name: newHabit.name, streak: 0, completed_dates: [], reminder_time: newHabit.time, user_id: currentUser.id }]).select(); if (data) { setHabits([data[0], ...habits]); setNewHabit({name:'', time:''}); } } } };
+  const toggleHabit = async (h: Habit) => { const today = new Date().toLocaleDateString(); const alreadyDone = h.completed_dates?.includes(today); const updatedDates = alreadyDone ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today]; if (!alreadyDone) confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 }, colors: ['#10B981', '#3B82F6'] }); const { data } = await supabase.from('habits').update({ completed_dates: updatedDates, streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1 }).eq('id', h.id).select(); if (data) setHabits(habits.map(item => item.id === h.id ? data[0] : item)); };
   const deleteHabit = async (id: string) => { if (!(await supabase.from('habits').delete().eq('id', id)).error) setHabits(habits.filter(x => x.id !== id)); };
-
-  const saveNote = async () => {
-    if (!activeNote || !currentUser) return;
-    setIsSaving(true);
-    const noteData = { title: activeNote.title || t.untitled, content: activeNote.content || '', user_id: currentUser.id, updated_at: new Date().toISOString() };
-    const { data } = activeNote.id && activeNote.id.length > 15 
-        ? await supabase.from('notes').update(noteData).eq('id', activeNote.id).select()
-        : await supabase.from('notes').insert([noteData]).select();
-    if (data) { 
-        setNotes(activeNote.id && activeNote.id.length > 15 ? notes.map(n => n.id === activeNote.id ? data[0] : n) : [data[0], ...notes]); 
-        setActiveNote(data[0]); 
-    }
-    setIsSaving(false);
-  };
-
-  const deleteNote = async (id: string) => { 
-    if(window.confirm(t.confirmDelete) && !(await supabase.from('notes').delete().eq('id', id)).error) { 
-        setNotes(notes.filter(n => n.id !== id)); 
-        setActiveNote(null); 
-        setIsMobileNoteEditing(false); 
-    } 
-  };
-
-  const handleAddSaving = async () => {
-    if (!newSaving.name || !newSaving.target) return;
-    const { data } = await supabase.from('savings').insert([{ user_id: currentUser.id, name: newSaving.name, target: parseFloat(newSaving.target), current: 0 }]).select();
-    if (data) { setSavings([...savings, data[0]]); setNewSaving({ name: '', target: '' }); setIsEditingSavings(false); }
-  };
-
-  const updateSavingAmount = async (id: string, addAmount: number) => {
-    const save = savings.find(s => s.id === id);
-    if (!save) return;
-    const newCurrent = save.current + addAmount;
-    if (newCurrent >= save.target && save.current < save.target) confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ['#10B981', '#3B82F6'] });
-    const { data } = await supabase.from('savings').update({ current: newCurrent }).eq('id', id).select();
-    if (data) setSavings(savings.map(s => s.id === id ? data[0] : s));
-  };
-
+  const saveNote = async () => { if (!activeNote || !currentUser) return; setIsSaving(true); const noteData = { title: activeNote.title || t.untitled, content: activeNote.content || '', user_id: currentUser.id, updated_at: new Date().toISOString() }; const { data } = activeNote.id && activeNote.id.length > 15 ? await supabase.from('notes').update(noteData).eq('id', activeNote.id).select() : await supabase.from('notes').insert([noteData]).select(); if (data) { setNotes(activeNote.id && activeNote.id.length > 15 ? notes.map(n => n.id === activeNote.id ? data[0] : n) : [data[0], ...notes]); setActiveNote(data[0]); } setIsSaving(false); };
+  const deleteNote = async (id: string) => { if(window.confirm(t.confirmDelete) && !(await supabase.from('notes').delete().eq('id', id)).error) { setNotes(notes.filter(n => n.id !== id)); setActiveNote(null); setIsMobileNoteEditing(false); } };
+  const handleAddSaving = async () => { if (!newSaving.name || !newSaving.target) return; const { data } = await supabase.from('savings').insert([{ user_id: currentUser.id, name: newSaving.name, target: parseFloat(newSaving.target), current: 0 }]).select(); if (data) { setSavings([...savings, data[0]]); setNewSaving({ name: '', target: '' }); setIsEditingSavings(false); } };
+  const updateSavingAmount = async (id: string, addAmount: number) => { const save = savings.find(s => s.id === id); if (!save) return; const newCurrent = save.current + addAmount; if (newCurrent >= save.target && save.current < save.target) confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ['#10B981', '#3B82F6'] }); const { data } = await supabase.from('savings').update({ current: newCurrent }).eq('id', id).select(); if (data) setSavings(savings.map(s => s.id === id ? data[0] : s)); };
   const deleteSaving = async (id: string) => { if (window.confirm(t.confirmDelete) && !(await supabase.from('savings').delete().eq('id', id)).error) setSavings(savings.filter(s => s.id !== id)); };
-
-  const saveBudget = async (category: string, amount: number) => {
-    if (!currentUser) return;
-    const existing = budgets.find(b => b.category === category);
-    if (existing) await supabase.from('budgets').update({ amount }).eq('id', existing.id);
-    else await supabase.from('budgets').insert([{ user_id: currentUser.id, category, amount, month_year: selectedDate.slice(0, 7) }]);
-    fetchData();
-  };
-
-  const handleInstallClick = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choice: any) => { if (choice.outcome === 'accepted') setIsAppInstalled(true); setDeferredPrompt(null); });
-    }
-  };
+  const saveBudget = async (category: string, amount: number) => { if (!currentUser) return; const existing = budgets.find(b => b.category === category); if (existing) await supabase.from('budgets').update({ amount }).eq('id', existing.id); else await supabase.from('budgets').insert([{ user_id: currentUser.id, category, amount, month_year: selectedDate.slice(0, 7) }]); fetchData(); };
+  const handleInstallClick = () => { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((choice: any) => { if (choice.outcome === 'accepted') setIsAppInstalled(true); setDeferredPrompt(null); }); } };
 
   if (authLoading) return <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-body)] text-[var(--text-muted)]">Zenith...</div>;
   if (!currentUser) return <AuthScreen lang={lang} />;
 
+  // --- CALENDAR COMPONENT (UPDATED FOR MOBILE) ---
+  const renderCalendar = () => {
+    const year = new Date(selectedDate).getFullYear();
+    const month = new Date(selectedDate).getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
+    const days = [];
+
+    // Empty slots
+    for (let i = 0; i < firstDay; i++) {
+        days.push(<div key={`empty-${i}`} className="min-h-[64px] bg-transparent"></div>);
+    }
+
+    // Days
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateObj = new Date(year, month, d);
+        const offset = dateObj.getTimezoneOffset() * 60000;
+        const dateStr = new Date(dateObj.getTime() - offset).toISOString().split('T')[0];
+        
+        const dayExpenses = expenses.filter(e => e.date.startsWith(dateStr));
+        const dayTotal = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
+        const isSelected = selectedDate === dateStr;
+        const isToday = dateStr === new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
+
+        days.push(
+            <div 
+                key={d} 
+                onClick={() => { setSelectedDate(dateStr); setFinanceFilter('daily'); }}
+                className={`min-h-[64px] md:h-20 rounded-xl border flex flex-col items-center justify-between py-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95 ${isSelected ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-md' : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-main)]'} ${isToday ? 'ring-2 ring-[var(--warning)]' : ''}`}
+            >
+                <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-[var(--text-main)]'}`}>{d}</span>
+                {dayTotal > 0 && (
+                    <div className="flex flex-col items-center">
+                        {/* Dot indicator removed on mobile to save space, text used instead */}
+                        <span className={`text-[8px] sm:text-[10px] font-bold leading-tight ${isSelected ? 'text-blue-100' : 'text-[var(--text-muted)]'}`}>
+                            {formatShortCurrency(dayTotal)}
+                        </span>
+                    </div>
+                )}
+            </div>
+        );
+    }
+    return days;
+  };
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-[var(--bg-body)] text-[var(--text-main)] transition-colors duration-500">
       <GlobalStyles />
-      
       {/* Sidebar Desktop */}
       <aside className="hidden md:flex w-[260px] bg-[var(--bg-sidebar)] border-r border-[var(--border)] fixed h-full flex-col p-6 z-50">
         <div className="mb-10 px-2 mt-4">
@@ -531,6 +511,24 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
+            
+            {/* Due Subscriptions Widget */}
+            {subscriptions.some(s => s.dayOfMonth === new Date().getDate()) && (
+               <div className="apple-card p-5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center"><CalendarCheck size={20}/></div>
+                      <div>
+                          <h4 className="font-bold text-sm">{t.dueToday}</h4>
+                          <p className="text-xs opacity-90">{subscriptions.filter(s => s.dayOfMonth === new Date().getDate()).map(s => s.label).join(', ')}</p>
+                      </div>
+                  </div>
+                  <div className="flex gap-2">
+                      {subscriptions.filter(s => s.dayOfMonth === new Date().getDate()).map(s => (
+                          <button key={s.id} onClick={() => handleQuickActionClick(s)} className="px-3 py-1.5 bg-white text-indigo-600 rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform">{t.pay} {formatCurrency(s.amount)}</button>
+                      ))}
+                  </div>
+               </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="apple-card p-6">
@@ -590,7 +588,7 @@ const App: React.FC = () => {
               </p>
             </div>
 
-            {/* 2. Tombol Navigasi Sub-Tab (SUDAH DIKEMBALIKAN) */}
+            {/* 2. Tombol Navigasi Sub-Tab */}
             <div className="flex bg-[var(--bg-input)] p-1 rounded-xl w-full max-w-sm mx-auto mb-8">
               {(['expenses', 'savings', 'budget'] as const).map((tab) => (
                 <button key={tab} onClick={() => setFinanceSubTab(tab)} className={`flex-1 py-1.5 text-[13px] font-semibold rounded-[10px] transition-all flex items-center justify-center gap-2 ${financeSubTab === tab ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'}`}>
@@ -602,68 +600,219 @@ const App: React.FC = () => {
             {/* 3. Konten Expenses */}
             {financeSubTab === 'expenses' && (
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex bg-[var(--bg-input)] p-1 rounded-lg w-full sm:w-auto">
-                      {(['daily', 'weekly', 'monthly'] as const).map((f) => (
-                      <button key={f} onClick={() => { setFinanceFilter(f); setSelectedDate(new Date().toISOString().split('T')[0]); }} className={`flex-1 sm:flex-none px-4 py-1.5 text-[12px] font-semibold rounded-md transition-all ${financeFilter === f ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)]'}`}>
-                          {f === 'daily' ? t.today : (f === 'weekly' ? t.lastSevenDays : t.thisMonth)}
-                      </button>
-                      ))}
+                
+                {/* Top Control Bar: Search & View Toggle */}
+                <div className="flex flex-col sm:flex-row gap-3 items-center justify-between mb-4">
+                    {/* View Toggle */}
+                    <div className="flex bg-[var(--bg-input)] p-1 rounded-lg self-start">
+                        <button onClick={() => setFinanceViewMode('list')} className={`px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-semibold transition-all ${financeViewMode === 'list' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)]'}`}>
+                            <List size={14} /> {t.viewMode.list}
+                        </button>
+                        <button onClick={() => { setFinanceViewMode('calendar'); setFinanceFilter('monthly'); }} className={`px-3 py-1.5 rounded-md flex items-center gap-2 text-xs font-semibold transition-all ${financeViewMode === 'calendar' ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)]'}`}>
+                            <Calendar size={14} /> {t.viewMode.calendar}
+                        </button>
                     </div>
-                    <div className="flex items-center justify-between w-full sm:w-auto sm:justify-end gap-2">
-                      <button onClick={() => navigateDate('prev')} className="p-2 hover:bg-[var(--bg-input)] rounded-full text-[var(--text-muted)]"><ArrowLeft size={16} /></button>
-                      <span className="text-sm font-semibold text-[var(--text-main)] text-center min-w-[120px]">{financeFilter === 'monthly' ? new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'long', year: 'numeric' }) : new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })}</span>
-                      <button onClick={() => navigateDate('next')} className="p-2 hover:bg-[var(--bg-input)] rounded-full text-[var(--text-muted)]"><ChevronRight size={16} /></button>
+
+                    {/* Search & Export */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="relative flex-1 sm:w-64">
+                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"/>
+                            <input className="w-full bg-[var(--bg-card)] border border-[var(--border)] rounded-xl py-2.5 pl-10 pr-4 text-xs font-medium outline-none focus:border-[var(--primary)] text-[var(--text-main)]" placeholder={t.search} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                        </div>
+                        <button onClick={handleExportCSV} className="bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-main)] p-2.5 rounded-xl hover:bg-[var(--bg-input)]" title={t.export}><FileDown size={18}/></button>
                     </div>
                 </div>
 
-                {/* Banner Gradient Baru */}
-                <div className="apple-card p-6 sm:p-8 bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white border-none shadow-lg shadow-blue-500/25 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-16 -mt-32 pointer-events-none transform group-hover:scale-110 transition-transform duration-700"></div>
-                    <div className="relative z-10 flex flex-col justify-between h-full">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-blue-100 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-                                <Wallet size={14} className="opacity-80" />
-                                {financeFilter === 'daily' ? t.today : (financeFilter === 'weekly' ? t.lastSevenDays : t.thisMonth)}
-                            </p>
-                            <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm">
-                                {filteredExpenses.length} {t.records}
-                            </span>
-                        </div>
-                        <div>
-                            <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm my-1">
-                                {formatCurrency(totalSpentFiltered || 0)}
-                            </h3>
-                            <p className="text-blue-100 text-xs font-medium opacity-90">
-                                {lang === 'id' ? 'Total Pengeluaran' : 'Total Expenses'}
-                            </p>
-                        </div>
-                    </div>
+                {/* Date Navigator (Common for List and Calendar) */}
+                <div className="flex items-center justify-between bg-[var(--bg-input)] p-2 rounded-xl mb-4">
+                    <button onClick={() => navigateDate('prev')} className="p-2 hover:bg-[var(--bg-card)] rounded-lg text-[var(--text-muted)] transition-colors"><ArrowLeft size={18} /></button>
+                    <span className="text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
+                        {financeViewMode === 'calendar' 
+                            ? new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'long', year: 'numeric' })
+                            : (financeFilter === 'monthly' 
+                                ? new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'long', year: 'numeric' }) 
+                                : new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }))
+                        }
+                    </span>
+                    <button onClick={() => navigateDate('next')} className="p-2 hover:bg-[var(--bg-card)] rounded-lg text-[var(--text-muted)] transition-colors"><ChevronRight size={18} /></button>
                 </div>
 
-                {chartData.length > 0 && (
-                    <div className="apple-card p-6 flex flex-col md:flex-row items-center gap-8">
-                        <div className="w-full md:w-1/2 h-[220px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                            <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="var(--bg-card)" strokeWidth={2} />))}
-                            </Pie>
-                            <RechartsTooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '12px', border: 'none', background: 'var(--bg-card)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize:'12px', fontWeight: 600 }} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        </div>
-                        <div className="w-full md:w-1/2 space-y-3">
-                        <h5 className="font-bold text-sm mb-4 text-[var(--text-main)]">{t.spendingBreakdown}</h5>
-                        {chartData.slice(0, 4).map((entry, index) => (
-                            <div key={index} className="flex justify-between items-center text-sm">
-                                <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full mr-3" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></div><span className="font-medium text-[var(--text-main)]">{entry.name}</span></div>
-                                <span className="text-[var(--text-muted)] font-medium text-xs">{formatCurrency(entry.value)}</span>
+                {/* === VIEW MODE: LIST === */}
+                {financeViewMode === 'list' && (
+                    <>
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                            <div className="flex bg-[var(--bg-input)] p-1 rounded-lg w-full sm:w-auto">
+                            {(['daily', 'weekly', 'monthly'] as const).map((f) => (
+                            <button key={f} onClick={() => { setFinanceFilter(f); setSelectedDate(new Date().toISOString().split('T')[0]); }} className={`flex-1 sm:flex-none px-4 py-1.5 text-[12px] font-semibold rounded-md transition-all ${financeFilter === f ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)]'}`}>
+                                {f === 'daily' ? t.today : (f === 'weekly' ? t.lastSevenDays : t.thisMonth)}
+                            </button>
+                            ))}
                             </div>
-                        ))}
+                        </div>
+
+                        {/* Banner Total */}
+                        <div className="apple-card p-6 sm:p-8 bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white border-none shadow-lg shadow-blue-500/25 relative overflow-hidden group mb-6">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-16 -mt-32 pointer-events-none transform group-hover:scale-110 transition-transform duration-700"></div>
+                            <div className="relative z-10 flex flex-col justify-between h-full">
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-blue-100 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                                        <Wallet size={14} className="opacity-80" />
+                                        {financeFilter === 'daily' ? t.today : (financeFilter === 'weekly' ? t.lastSevenDays : t.thisMonth)}
+                                    </p>
+                                    <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm">
+                                        {filteredExpenses.length} {t.records}
+                                    </span>
+                                </div>
+                                <div>
+                                    <h3 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm my-1">
+                                        {formatCurrency(totalSpentFiltered || 0)}
+                                    </h3>
+                                    <p className="text-blue-100 text-xs font-medium opacity-90">
+                                        {lang === 'id' ? 'Total Pengeluaran' : 'Total Expenses'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Chart */}
+                        {chartData.length > 0 && (
+                            <div className="apple-card p-6 flex flex-col md:flex-row items-center gap-8 mb-6">
+                                <div className="w-full md:w-1/2 h-[220px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                    <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                        {chartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} stroke="var(--bg-card)" strokeWidth={2} />))}
+                                    </Pie>
+                                    <RechartsTooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '12px', border: 'none', background: 'var(--bg-card)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize:'12px', fontWeight: 600 }} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                </div>
+                                <div className="w-full md:w-1/2 space-y-3">
+                                <h5 className="font-bold text-sm mb-4 text-[var(--text-main)]">{t.spendingBreakdown}</h5>
+                                {chartData.slice(0, 4).map((entry, index) => (
+                                    <div key={index} className="flex justify-between items-center text-sm">
+                                        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full mr-3" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></div><span className="font-medium text-[var(--text-main)]">{entry.name}</span></div>
+                                        <span className="text-[var(--text-muted)] font-medium text-xs">{formatCurrency(entry.value)}</span>
+                                    </div>
+                                ))}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* === VIEW MODE: CALENDAR === */}
+                {financeViewMode === 'calendar' && (
+                    <div className="mb-6 fade-in">
+                        <div className="grid grid-cols-7 gap-2 mb-2 text-center">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                                <div key={d} className="text-[10px] font-bold text-[var(--text-muted)] uppercase">{d}</div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-7 gap-2">
+                            {renderCalendar()}
+                        </div>
+                        <div className="text-center mt-4 text-xs text-[var(--text-muted)]">
+                            {lang === 'id' ? 'Klik tanggal untuk melihat detail' : 'Click a date to view details'}
                         </div>
                     </div>
                 )}
+
+                {/* --- QUICK ACTIONS BAR --- */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-1">
+                      <h4 className="font-bold text-sm text-[var(--text-main)] flex items-center gap-2"><Flashlight size={14} className="text-[var(--warning)]" fill="currentColor" /> {t.quickActions}</h4>
+                      <button onClick={() => setIsEditingQuickActions(!isEditingQuickActions)} className="text-[10px] font-bold text-[var(--primary)] bg-[var(--bg-input)] px-2 py-1 rounded-md hover:bg-gray-200 transition-colors">
+                          {isEditingQuickActions ? t.save : t.manage}
+                      </button>
+                  </div>
+                  
+                  {isEditingQuickActions ? (
+                      <div className="apple-card p-4 border-2 border-dashed border-[var(--border)] bg-[var(--bg-body)] animate-in fade-in">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                              {quickActions.map(qa => (
+                                  <div key={qa.id} className="flex items-center justify-between bg-[var(--bg-input)] p-2 rounded-lg">
+                                      <div className="flex flex-col">
+                                          <span className="text-xs font-bold text-[var(--text-main)]">{qa.label}</span>
+                                          <span className="text-[10px] text-[var(--text-muted)]">{formatCurrency(qa.amount)}</span>
+                                      </div>
+                                      <button onClick={() => deleteQuickAction(qa.id)} className="text-[var(--danger)] p-1 hover:bg-red-50 rounded"><Trash2 size={14}/></button>
+                                  </div>
+                              ))}
+                          </div>
+                          <div className="flex gap-2 items-center border-t border-[var(--border)] pt-3">
+                              <input className="apple-input py-2 text-xs" placeholder="Label (e.g. Busway)" value={newQuickAction.label} onChange={e => setNewQuickAction({...newQuickAction, label: e.target.value})} />
+                              <input className="apple-input py-2 text-xs w-24" type="number" placeholder="Rp" value={newQuickAction.amount} onChange={e => setNewQuickAction({...newQuickAction, amount: e.target.value})} />
+                              <button onClick={handleAddQuickAction} className="bg-[var(--primary)] text-white p-2 rounded-lg"><Plus size={16} /></button>
+                          </div>
+                      </div>
+                  ) : (
+                      <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar snap-x">
+                          {quickActions.map(qa => (
+                              <button 
+                                  key={qa.id} 
+                                  onClick={() => handleQuickActionClick(qa)}
+                                  className="snap-start shrink-0 flex flex-col items-start justify-between min-w-[100px] p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--primary)] hover:shadow-md transition-all active:scale-95 group"
+                              >
+                                  <span className="text-[11px] font-bold text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors">{qa.label}</span>
+                                  <span className="text-[13px] font-extrabold text-[var(--text-main)] mt-1">{formatCurrency(qa.amount)}</span>
+                              </button>
+                          ))}
+                          <button onClick={() => setIsEditingQuickActions(true)} className="snap-start shrink-0 flex flex-col items-center justify-center min-w-[50px] rounded-xl border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-colors">
+                              <Plus size={18} />
+                          </button>
+                      </div>
+                  )}
+                </div>
+
+                {/* --- SUBSCRIPTIONS (RECURRING) --- */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-1">
+                      <h4 className="font-bold text-sm text-[var(--text-main)] flex items-center gap-2"><Repeat size={14} className="text-[var(--text-muted)]" /> {t.subscriptions}</h4>
+                      <button onClick={() => setIsEditingSubscriptions(!isEditingSubscriptions)} className="text-[10px] font-bold text-[var(--primary)] bg-[var(--bg-input)] px-2 py-1 rounded-md hover:bg-gray-200 transition-colors">
+                          {isEditingSubscriptions ? t.save : t.manage}
+                      </button>
+                  </div>
+                  
+                  {isEditingSubscriptions ? (
+                      <div className="apple-card p-4 border-2 border-dashed border-[var(--border)] bg-[var(--bg-body)] animate-in fade-in">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                              {subscriptions.map(s => (
+                                  <div key={s.id} className="flex items-center justify-between bg-[var(--bg-input)] p-2 rounded-lg">
+                                      <div className="flex flex-col">
+                                          <span className="text-xs font-bold text-[var(--text-main)]">{s.label} (Day {s.dayOfMonth})</span>
+                                          <span className="text-[10px] text-[var(--text-muted)]">{formatCurrency(s.amount)}</span>
+                                      </div>
+                                      <button onClick={() => deleteSubscription(s.id)} className="text-[var(--danger)] p-1 hover:bg-red-50 rounded"><Trash2 size={14}/></button>
+                                  </div>
+                              ))}
+                          </div>
+                          <div className="flex gap-2 items-center border-t border-[var(--border)] pt-3">
+                              <input className="apple-input py-2 text-xs" placeholder="Label" value={newSubscription.label} onChange={e => setNewSubscription({...newSubscription, label: e.target.value})} />
+                              <input className="apple-input py-2 text-xs w-20" type="number" placeholder="Rp" value={newSubscription.amount} onChange={e => setNewSubscription({...newSubscription, amount: e.target.value})} />
+                              <input className="apple-input py-2 text-xs w-16" type="number" placeholder="Day" max={31} value={newSubscription.day} onChange={e => setNewSubscription({...newSubscription, day: e.target.value})} />
+                              <button onClick={handleAddSubscription} className="bg-[var(--primary)] text-white p-2 rounded-lg"><Plus size={16} /></button>
+                          </div>
+                      </div>
+                  ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {subscriptions.map(s => (
+                              <div key={s.id} className={`p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] flex flex-col ${new Date().getDate() === s.dayOfMonth ? 'border-[var(--warning)] ring-1 ring-[var(--warning)]' : ''}`}>
+                                  <div className="flex justify-between items-start mb-2">
+                                      <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Day {s.dayOfMonth}</span>
+                                      {new Date().getDate() === s.dayOfMonth && <div className="w-2 h-2 rounded-full bg-[var(--warning)]"></div>}
+                                  </div>
+                                  <span className="font-bold text-[13px] text-[var(--text-main)] truncate">{s.label}</span>
+                                  <div className="flex justify-between items-center mt-1">
+                                      <span className="text-xs text-[var(--text-muted)]">{formatCurrency(s.amount)}</span>
+                                      <button onClick={() => handleQuickActionClick(s)} className="p-1.5 bg-[var(--bg-input)] hover:bg-[var(--primary)] hover:text-white rounded-lg transition-colors"><Check size={12}/></button>
+                                  </div>
+                              </div>
+                          ))}
+                          {subscriptions.length === 0 && <div className="col-span-2 text-[var(--text-muted)] text-xs p-3 border border-dashed border-[var(--border)] rounded-xl flex items-center justify-center">No subscriptions</div>}
+                      </div>
+                  )}
+                </div>
 
                 <div className={`apple-card p-6 transition-all duration-300 ${editingExpenseId ? 'ring-1 ring-[var(--text-main)]' : ''}`}>
                     <div className="flex flex-col gap-3">
@@ -698,7 +847,7 @@ const App: React.FC = () => {
                     </div>
                     </div>
                 ))}
-                {filteredExpenses.length === 0 && <div className="text-center py-12 text-[var(--text-muted)] text-sm font-medium">No transactions for this period.</div>}
+                {filteredExpenses.length === 0 && <div className="text-center py-12 text-[var(--text-muted)] text-sm font-medium">{searchQuery ? 'No transactions found matching your search.' : 'No transactions for this period.'}</div>}
                 </div>
               </div>
             )}
@@ -824,8 +973,7 @@ const App: React.FC = () => {
                         </div>
                     </div>
                     <button onClick={() => toggleHabit(h)} className={`w-full py-3 rounded-xl flex items-center justify-center font-semibold text-[14px] transition-all active:scale-[0.98] ${doneToday ? 'bg-[var(--bg-input)] text-[var(--text-muted)]' : 'bg-[var(--primary)] text-[var(--bg-body)] dark:bg-white dark:text-black shadow-md'}`}>
-                        {doneToday ? <><Check size={16} className="mr-2" strokeWidth={3}/> {lang === 'id' ? 'Selesai' : 'Completed'}</> : <><CheckCircle2 size={16} className="mr-2"/> {lang === 'id' ? 'Tandai Selesai' : 'Mark Done'}</>}
-                    </button>
+                        {doneToday ? <><Check size={16} className="mr-2" strokeWidth={3}/> {lang === 'id' ? 'Selesai' : 'Completed'}</> : <><CheckCircle2 size={16} className="mr-2"/> {lang === 'id' ? 'Tandai Selesai' : 'Mark Done'}</>}</button>
                 </div>
                 )
             })}
