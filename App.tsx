@@ -5,7 +5,7 @@ import {
   Clock, FileText, User as UserIcon, LogOut, Coffee, Car, ShoppingBag,
   CreditCard, MoreHorizontal, Heart, Gamepad2, Inbox, Calendar, Languages, Save, TrendingDown,
   X, Check, CalendarDays, ArrowLeft, Target, BarChart3, PiggyBank, TrendingUp, Trophy, Download, Smartphone,
-  PieChart as PieIcon, Coins, Sun, Moon, ArrowUpRight, Zap, Grip, Receipt, Settings2, Flashlight, Search, FileDown, Repeat, CalendarCheck, List
+  PieChart as PieIcon, Coins, Sun, Moon, ArrowUpRight, Zap, Grip, Receipt, Settings2, Flashlight, Search, FileDown, Repeat, CalendarCheck, List, Activity
 } from 'lucide-react';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip,
@@ -86,6 +86,7 @@ const translations = {
     subscriptions: "Subscriptions", dueToday: "Due Today", pay: "Pay", noDue: "No bills due today",
     search: "Search transactions...", export: "Export CSV",
     viewMode: { list: "List View", calendar: "Calendar View" },
+    habitProgress: "Today's Progress", consistency: "Consistency (30d)",
     categories: {
       Food: "Food", Transport: "Transport", Shopping: "Shopping",
       Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -116,6 +117,7 @@ const translations = {
     subscriptions: "Langganan", dueToday: "Bayar Hari Ini", pay: "Bayar", noDue: "Tidak ada tagihan hari ini",
     search: "Cari transaksi...", export: "Unduh CSV",
     viewMode: { list: "Tampilan List", calendar: "Kalender" },
+    habitProgress: "Progres Hari Ini", consistency: "Konsistensi (30h)",
     categories: {
       Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
       Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
@@ -313,6 +315,26 @@ const App: React.FC = () => {
   const getCategoryIcon = (cat: string) => { const icons: any = { Food: <Coffee size={18}/>, Transport: <Car size={18}/>, Shopping: <ShoppingBag size={18}/>, Bills: <CreditCard size={18}/>, Health: <Heart size={18}/>, Entertainment: <Gamepad2 size={18}/> }; return icons[cat] || <MoreHorizontal size={18}/>; };
   const formatShortDate = (iso: string) => new Date(iso).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' });
 
+  // --- Helper for Habit Heatmap ---
+  const getLast14Days = () => {
+    return [...Array(14)].map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (13 - i));
+        return d.toLocaleDateString(); // Matches Supabase saved format
+    });
+  };
+
+  const getHabitCompletionRate = (h: Habit) => {
+      // Calculate rate based on last 30 days
+      const last30Days = [...Array(30)].map((_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          return d.toLocaleDateString();
+      });
+      const completedCount = last30Days.filter(d => h.completed_dates.includes(d)).length;
+      return Math.round((completedCount / 30) * 100);
+  };
+
   // --- Logic Computations ---
   const filteredExpenses = useMemo(() => {
     if (searchQuery.trim()) {
@@ -376,15 +398,15 @@ const App: React.FC = () => {
   };
 
   const handleAddQuickAction = () => { if (newQuickAction.label && newQuickAction.amount) { setQuickActions([...quickActions, { id: Date.now().toString(), label: newQuickAction.label, amount: parseFloat(newQuickAction.amount), category: newQuickAction.category }]); setNewQuickAction({ label: '', amount: '', category: 'Transport' }); } };
-  const deleteQuickAction = (id: string) => setQuickActions(quickActions.filter(q => q.id !== id));
+  const deleteQuickAction = (id: string) => { if(window.confirm(t.confirmDelete)) setQuickActions(quickActions.filter(q => q.id !== id)); };
   
   const handleAddSubscription = () => { if (newSubscription.label && newSubscription.amount && newSubscription.day) { setSubscriptions([...subscriptions, { id: Date.now().toString(), label: newSubscription.label, amount: parseFloat(newSubscription.amount), category: newSubscription.category, dayOfMonth: parseInt(newSubscription.day) }]); setNewSubscription({ label: '', amount: '', category: 'Bills', day: '' }); } };
-  const deleteSubscription = (id: string) => setSubscriptions(subscriptions.filter(s => s.id !== id));
+  const deleteSubscription = (id: string) => { if(window.confirm(t.confirmDelete)) setSubscriptions(subscriptions.filter(s => s.id !== id)); };
 
-  const deleteExpense = async (id: string) => { if (!(await supabase.from('expenses').delete().eq('id', id)).error) setExpenses(expenses.filter(x => x.id !== id)); };
+  const deleteExpense = async (id: string) => { if (window.confirm(t.confirmDelete) && !(await supabase.from('expenses').delete().eq('id', id)).error) setExpenses(expenses.filter(x => x.id !== id)); };
   const handleAddHabit = async () => { if(newHabit.name) { if (editingHabitId) { const { data } = await supabase.from('habits').update({ name: newHabit.name, reminder_time: newHabit.time }).eq('id', editingHabitId).select(); if (data) { setHabits(habits.map(h => h.id === editingHabitId ? data[0] : h)); setEditingHabitId(null); setNewHabit({ name: '', time: '' }); } } else { const { data } = await supabase.from('habits').insert([{ name: newHabit.name, streak: 0, completed_dates: [], reminder_time: newHabit.time, user_id: currentUser.id }]).select(); if (data) { setHabits([data[0], ...habits]); setNewHabit({name:'', time:''}); } } } };
   const toggleHabit = async (h: Habit) => { const today = new Date().toLocaleDateString(); const alreadyDone = h.completed_dates?.includes(today); const updatedDates = alreadyDone ? h.completed_dates.filter(d => d !== today) : [...(h.completed_dates || []), today]; if (!alreadyDone) confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 }, colors: ['#10B981', '#3B82F6'] }); const { data } = await supabase.from('habits').update({ completed_dates: updatedDates, streak: alreadyDone ? Math.max(0, h.streak - 1) : h.streak + 1 }).eq('id', h.id).select(); if (data) setHabits(habits.map(item => item.id === h.id ? data[0] : item)); };
-  const deleteHabit = async (id: string) => { if (!(await supabase.from('habits').delete().eq('id', id)).error) setHabits(habits.filter(x => x.id !== id)); };
+  const deleteHabit = async (id: string) => { if (window.confirm(t.confirmDelete) && !(await supabase.from('habits').delete().eq('id', id)).error) setHabits(habits.filter(x => x.id !== id)); };
   const saveNote = async () => { if (!activeNote || !currentUser) return; setIsSaving(true); const noteData = { title: activeNote.title || t.untitled, content: activeNote.content || '', user_id: currentUser.id, updated_at: new Date().toISOString() }; const { data } = activeNote.id && activeNote.id.length > 15 ? await supabase.from('notes').update(noteData).eq('id', activeNote.id).select() : await supabase.from('notes').insert([noteData]).select(); if (data) { setNotes(activeNote.id && activeNote.id.length > 15 ? notes.map(n => n.id === activeNote.id ? data[0] : n) : [data[0], ...notes]); setActiveNote(data[0]); } setIsSaving(false); };
   const deleteNote = async (id: string) => { if(window.confirm(t.confirmDelete) && !(await supabase.from('notes').delete().eq('id', id)).error) { setNotes(notes.filter(n => n.id !== id)); setActiveNote(null); setIsMobileNoteEditing(false); } };
   const handleAddSaving = async () => { if (!newSaving.name || !newSaving.target) return; const { data } = await supabase.from('savings').insert([{ user_id: currentUser.id, name: newSaving.name, target: parseFloat(newSaving.target), current: 0 }]).select(); if (data) { setSavings([...savings, data[0]]); setNewSaving({ name: '', target: '' }); setIsEditingSavings(false); } };
@@ -396,7 +418,7 @@ const App: React.FC = () => {
   if (authLoading) return <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-body)] text-[var(--text-muted)]">Zenith...</div>;
   if (!currentUser) return <AuthScreen lang={lang} />;
 
-  // --- CALENDAR COMPONENT (UPDATED FOR MOBILE) ---
+  // --- CALENDAR COMPONENT ---
   const renderCalendar = () => {
     const year = new Date(selectedDate).getFullYear();
     const month = new Date(selectedDate).getMonth();
@@ -429,7 +451,6 @@ const App: React.FC = () => {
                 <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-[var(--text-main)]'}`}>{d}</span>
                 {dayTotal > 0 && (
                     <div className="flex flex-col items-center">
-                        {/* Dot indicator removed on mobile to save space, text used instead */}
                         <span className={`text-[8px] sm:text-[10px] font-bold leading-tight ${isSelected ? 'text-blue-100' : 'text-[var(--text-muted)]'}`}>
                             {formatShortCurrency(dayTotal)}
                         </span>
@@ -938,6 +959,19 @@ const App: React.FC = () => {
         {/* --- Habits Tab --- */}
         {activeTab === 'habits' && (
         <div className="space-y-8 fade-in pb-20">
+            {/* Header Stats for Habits */}
+            <div className="flex items-center justify-between mb-4 px-2">
+                <div>
+                    <h3 className="text-2xl font-bold text-[var(--text-main)] tracking-tight">{t.habitProgress}</h3>
+                    <p className="text-[var(--text-muted)] text-sm font-medium mt-1">
+                        {habits.filter(h => h.completed_dates.includes(new Date().toLocaleDateString())).length}/{habits.length} Completed
+                    </p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-[var(--bg-input)] flex items-center justify-center text-[var(--primary)]">
+                    <Activity size={24} />
+                </div>
+            </div>
+
             <div className={`p-6 rounded-[24px] transition-all duration-300 shadow-sm border border-[var(--border)] ${editingHabitId ? 'bg-orange-50 dark:bg-orange-900/10 ring-2 ring-[var(--warning)]' : 'bg-[var(--bg-card)]'}`}>
               <div className="flex flex-col md:flex-row gap-3 items-center">
                   <div className="flex-1 w-full relative">
@@ -954,26 +988,48 @@ const App: React.FC = () => {
                   </div>
               </div>
             </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {habits.map(h => {
                 const doneToday = h.completed_dates?.includes(new Date().toLocaleDateString());
+                const last14Days = getLast14Days();
+                const completionRate = getHabitCompletionRate(h);
+
                 return (
-                <div key={h.id} className={`apple-card p-6 group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${editingHabitId === h.id ? 'ring-2 ring-[var(--text-main)]' : ''}`}>
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="flex-1 pr-4">
-                            <h4 className={`text-[17px] font-bold tracking-tight mb-2 text-[var(--text-main)] ${doneToday ? 'text-[var(--text-muted)] line-through' : ''}`}>{h.name}</h4>
-                            <div className="flex items-center space-x-3">
-                                {h.reminder_time && <span className="flex items-center text-[10px] font-bold text-[var(--text-muted)] bg-[var(--bg-input)] px-2 py-1 rounded-md"><Clock size={11} className="mr-1"/> {h.reminder_time}</span>}
-                                <span className="flex items-center text-[10px] font-bold text-[var(--text-main)]"><Flame size={11} className="mr-1 fill-current"/> {h.streak}</span>
+                <div key={h.id} className={`apple-card p-5 group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col justify-between h-full ${editingHabitId === h.id ? 'ring-2 ring-[var(--text-main)]' : ''}`}>
+                    <div>
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex-1 pr-4">
+                                <h4 className={`text-[16px] font-bold tracking-tight mb-1 text-[var(--text-main)] ${doneToday ? 'text-[var(--text-muted)] line-through' : ''}`}>{h.name}</h4>
+                                <div className="flex items-center space-x-3">
+                                    <span className="flex items-center text-[10px] font-bold text-[var(--text-main)]"><Flame size={11} className="mr-1 fill-current text-[var(--warning)]"/> {h.streak} streak</span>
+                                    <span className="text-[10px] font-bold text-[var(--text-muted)]">{completionRate}% consistency</span>
+                                </div>
+                            </div>
+                            <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => { setEditingHabitId(h.id); setNewHabit({ name: h.name, time: h.reminder_time || '' }) }} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-colors"><Pencil size={12} /></button>
+                                <button onClick={() => deleteHabit(h.id)} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-red-50 hover:text-[var(--danger)] transition-colors"><Trash2 size={12} /></button>
                             </div>
                         </div>
-                        <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => { setEditingHabitId(h.id); setNewHabit({ name: h.name, time: h.reminder_time || '' }) }} className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-colors"><Pencil size={14} /></button>
-                            <button onClick={() => deleteHabit(h.id)} className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-red-50 hover:text-[var(--danger)] transition-colors"><Trash2 size={14} /></button>
+
+                        {/* MINI HEATMAP */}
+                        <div className="flex gap-1 mb-4 justify-between">
+                            {last14Days.map((date, idx) => {
+                                const isDone = h.completed_dates.includes(date);
+                                return (
+                                    <div 
+                                        key={idx} 
+                                        className={`h-6 flex-1 rounded-sm transition-all ${isDone ? 'bg-[var(--success)] opacity-90' : 'bg-[var(--bg-input)]'}`} 
+                                        title={date}
+                                    />
+                                );
+                            })}
                         </div>
                     </div>
-                    <button onClick={() => toggleHabit(h)} className={`w-full py-3 rounded-xl flex items-center justify-center font-semibold text-[14px] transition-all active:scale-[0.98] ${doneToday ? 'bg-[var(--bg-input)] text-[var(--text-muted)]' : 'bg-[var(--primary)] text-[var(--bg-body)] dark:bg-white dark:text-black shadow-md'}`}>
-                        {doneToday ? <><Check size={16} className="mr-2" strokeWidth={3}/> {lang === 'id' ? 'Selesai' : 'Completed'}</> : <><CheckCircle2 size={16} className="mr-2"/> {lang === 'id' ? 'Tandai Selesai' : 'Mark Done'}</>}</button>
+
+                    <button onClick={() => toggleHabit(h)} className={`w-full py-2.5 rounded-xl flex items-center justify-center font-semibold text-[13px] transition-all active:scale-[0.98] ${doneToday ? 'bg-[var(--bg-input)] text-[var(--text-muted)]' : 'bg-[var(--primary)] text-[var(--bg-body)] dark:bg-white dark:text-black shadow-md'}`}>
+                        {doneToday ? <><Check size={16} className="mr-2" strokeWidth={3}/> {lang === 'id' ? 'Selesai' : 'Completed'}</> : <><CheckCircle2 size={16} className="mr-2"/> {lang === 'id' ? 'Tandai Selesai' : 'Mark Done'}</>}
+                    </button>
                 </div>
                 )
             })}
