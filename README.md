@@ -1,4 +1,4 @@
-# Zenith 🚀
+# Zenith Self Organizer
 
 **Zenith** is an all-in-one **Personal Life Organizer** built as a Progressive Web App (PWA). It helps you manage finances, build positive habits, and journal your life journey in a modern, aesthetic interface designed for both Mobile and Desktop.
 
