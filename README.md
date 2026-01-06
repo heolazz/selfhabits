@@ -3,7 +3,8 @@
 **Zenith** is an all-in-one **Personal Life Organizer** built as a Progressive Web App (PWA). It helps you manage finances, build positive habits, and journal your life journey in a modern, aesthetic interface designed for both Mobile and Desktop.
 
 <img width="1920" height="976" alt="screencapture-localhost-5173-2026-01-06-14_59_21" src="https://github.com/user-attachments/assets/0394b33e-0858-4f1c-ad15-cf4d1b9718e2" />
-<img width="1920" height="904" alt="screencapture-selfhabits-vercel-app-2026-01-06-15_03_17" src="https://github.com/user-attachments/assets/2b414477-f426-43b2-88db-9430a71504c5" />
+<img width="1920" height="976" alt="screencapture-selfhabits-vercel-app-2026-01-06-15_12_22" src="https://github.com/user-attachments/assets/cc32d7c3-3f5f-4209-9eec-bf79ae6e5235" />
+
 
 
 ## Key Features
