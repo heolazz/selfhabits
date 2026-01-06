@@ -6,7 +6,7 @@
 
 ## Key Features
 
-* **💰 Wallet (Finance Manager):**
+* **Wallet (Finance Manager):**
     * **Expense Tracking:** Log daily expenses with iconic categories.
     * **Visual Analytics:** Interactive Pie and Bar charts to track weekly trends.
     * **Smart Budgeting:** Set spending limits per category (Food, Transport, etc).
@@ -14,17 +14,17 @@
     * **Calendar View:** Visual overview of daily spending patterns.
     * **Export Data:** Download financial reports as CSV/Excel files.
 
-* **🔥 Habits (Habit Builder):**
+* **Habits (Habit Builder):**
     * **Streak Tracker:** Gamified consistency tracking.
     * **Heatmap Visualization:** GitHub-style contribution graph to view long-term performance.
     * **Flexible Targets:** Support for specific frequencies (e.g., 3x per week).
 
-* **📝 Journal (Life Logger):**
+* **Journal (Life Logger):**
     * **Mood Tracker:** Track daily emotions with an emoji selector.
     * **Tagging System:** Organize entries using dynamic #tags.
     * **Rich Editor:** Distraction-free writing experience.
 
-* **⚙️ General:**
+* **General:**
     * **PWA Support:** Installable on Android/iOS/Desktop with offline capabilities.
     * **Google Auth:** Secure and fast sign-in.
     * **Dark Mode:** Adaptive UI for visual comfort.
@@ -143,7 +143,8 @@ To create a production-ready build:
 
 ```bash
 npm run build
+```
 
-## 📄 License
+##  License
 
 **Built with ❤️ by [Harits Taqiy]**
