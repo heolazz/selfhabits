@@ -3,6 +3,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '../services/supabaseClient';
 import { Expense, Habit, Note, Budget, Saving, Theme, Language, User } from '../types';
 
+interface UserSettings {
+    id?: string;
+    user_id?: string;
+    total_monthly_budget: number;
+    cycle_start_date: number;
+}
+
 interface AppContextType {
     currentUser: User | null;
     authLoading: boolean;
@@ -20,6 +27,8 @@ interface AppContextType {
     setBudgets: React.Dispatch<React.SetStateAction<Budget[]>>;
     savings: Saving[];
     setSavings: React.Dispatch<React.SetStateAction<Saving[]>>;
+    userSettings: UserSettings;
+    setUserSettings: React.Dispatch<React.SetStateAction<UserSettings>>;
     fetchData: () => Promise<void>;
     handleLogout: () => Promise<void>;
 }
@@ -38,6 +47,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [notes, setNotes] = useState<Note[]>([]);
     const [budgets, setBudgets] = useState<Budget[]>([]);
     const [savings, setSavings] = useState<Saving[]>([]);
+    const [userSettings, setUserSettings] = useState<UserSettings>({
+        total_monthly_budget: 0,
+        cycle_start_date: 1
+    });
 
     useEffect(() => {
         localStorage.setItem('zenith_lang', lang);
@@ -62,18 +75,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const fetchData = async () => {
         if (!currentUser) return;
-        const [exp, hab, not, bud, sav] = await Promise.all([
+        const [exp, hab, not, bud, sav, settings] = await Promise.all([
             supabase.from('expenses').select('*').order('date', { ascending: false }),
             supabase.from('habits').select('*').order('created_at', { ascending: false }),
             supabase.from('notes').select('*').order('updated_at', { ascending: false }),
             supabase.from('budgets').select('*'),
-            supabase.from('savings').select('*').order('created_at', { ascending: true })
+            supabase.from('savings').select('*').order('created_at', { ascending: true }),
+            supabase.from('user_settings').select('*').eq('user_id', currentUser.id).single()
         ]);
         if (exp.data) setExpenses(exp.data);
         if (hab.data) setHabits(hab.data);
         if (not.data) setNotes(not.data);
         if (bud.data) setBudgets(bud.data);
         if (sav.data) setSavings(sav.data);
+        if (settings.data) setUserSettings(settings.data);
     };
 
     const handleLogout = async () => {
@@ -95,6 +110,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             notes, setNotes,
             budgets, setBudgets,
             savings, setSavings,
+            userSettings, setUserSettings,
             fetchData, handleLogout
         }}>
             {children}

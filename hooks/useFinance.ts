@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useApp } from '../contexts/AppContext';
 import { Expense, QuickAction, Subscription } from '../types';
@@ -16,7 +16,9 @@ export const useFinance = () => {
         setSavings,
         budgets,
         setBudgets,
-        fetchData
+        fetchData,
+        userSettings,
+        setUserSettings
     } = useApp();
     const t = translations[lang];
 
@@ -33,19 +35,50 @@ export const useFinance = () => {
     const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Others' });
     const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
-    // --- NEW BUDGET LOGIC ---
-    const [totalMonthlyBudget, setTotalMonthlyBudget] = useState<number>(() => {
-        const saved = localStorage.getItem('zenith_total_budget');
-        return saved ? parseFloat(saved) : 0;
-    });
+    // --- BUDGET LOGIC (SYNCED WITH SUPABASE user_settings) ---
+    const totalMonthlyBudget = userSettings.total_monthly_budget;
+    const cycleStartDate = userSettings.cycle_start_date;
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const [cycleStartDate, setCycleStartDate] = useState<number>(() => {
-        const saved = localStorage.getItem('zenith_cycle_start');
-        return saved ? parseInt(saved) : 1;
-    });
+    // Auto-save to Supabase with debounce (1.5 seconds after last change)
+    const saveSettingsToCloud = useCallback(async (budget: number, cycle: number) => {
+        if (!currentUser) return;
+        if (userSettings.id) {
+            await supabase.from('user_settings').update({
+                total_monthly_budget: budget,
+                cycle_start_date: cycle,
+                updated_at: new Date().toISOString()
+            }).eq('id', userSettings.id);
+        } else {
+            const { data } = await supabase.from('user_settings').insert([{
+                user_id: currentUser.id,
+                total_monthly_budget: budget,
+                cycle_start_date: cycle
+            }]).select();
+            if (data) setUserSettings(data[0]);
+        }
+    }, [currentUser, userSettings.id, setUserSettings]);
 
-    useEffect(() => { localStorage.setItem('zenith_total_budget', totalMonthlyBudget.toString()); }, [totalMonthlyBudget]);
-    useEffect(() => { localStorage.setItem('zenith_cycle_start', cycleStartDate.toString()); }, [cycleStartDate]);
+    const setTotalMonthlyBudget = useCallback((value: number) => {
+        setUserSettings(prev => ({ ...prev, total_monthly_budget: value }));
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            saveSettingsToCloud(value, userSettings.cycle_start_date);
+        }, 1500);
+    }, [saveSettingsToCloud, setUserSettings, userSettings.cycle_start_date]);
+
+    const setCycleStartDate = useCallback((value: number) => {
+        setUserSettings(prev => ({ ...prev, cycle_start_date: value }));
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+            saveSettingsToCloud(userSettings.total_monthly_budget, value);
+        }, 1500);
+    }, [saveSettingsToCloud, setUserSettings, userSettings.total_monthly_budget]);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    }, []);
 
     const totalAllocated = useMemo(() => budgets.reduce((sum, b) => sum + b.amount, 0), [budgets]);
     const unallocatedBudget = useMemo(() => totalMonthlyBudget - totalAllocated, [totalMonthlyBudget, totalAllocated]);
