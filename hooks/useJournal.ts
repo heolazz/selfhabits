@@ -3,10 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
+import { useToast } from '../components/Toast';
 
 export const useJournal = () => {
     const { lang, currentUser, notes, setNotes } = useApp();
     const t = translations[lang];
+    const { showToast } = useToast();
 
     const [isMobileNoteEditing, setIsMobileNoteEditing] = useState(false);
     const [activeNoteId, setActiveNoteId] = useState<string | null>(notes.length > 0 ? notes[0].id : null);
@@ -27,6 +29,7 @@ export const useJournal = () => {
             setNoteTitle(data[0].title);
             setNoteContent(data[0].content);
             setIsMobileNoteEditing(true);
+            showToast(lang === 'id' ? '📝 Catatan baru dibuat' : '📝 New note created');
         }
     };
 
@@ -39,6 +42,7 @@ export const useJournal = () => {
         }).eq('id', activeNoteId).select();
         if (data) {
             setNotes(notes.map(n => n.id === activeNoteId ? data[0] : n));
+            showToast(lang === 'id' ? '☁️ Catatan disimpan' : '☁️ Note saved', 'cloud', 1800);
         }
     };
 
@@ -51,6 +55,7 @@ export const useJournal = () => {
                 setNoteTitle('');
                 setNoteContent('');
             }
+            showToast(lang === 'id' ? '🗑️ Catatan dihapus' : '🗑️ Note deleted', 'info');
         }
     };
 

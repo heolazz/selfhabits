@@ -5,6 +5,7 @@ import { Expense, QuickAction, Subscription } from '../types';
 import confetti from 'canvas-confetti';
 import { translations } from '../constants/translations';
 import { toLocalDateStr, isSameDay } from '../utils/dateHelpers';
+import { useToast } from '../components/Toast';
 
 export const useFinance = () => {
     const {
@@ -21,6 +22,7 @@ export const useFinance = () => {
         setUserSettings
     } = useApp();
     const t = translations[lang];
+    const { showToast } = useToast();
 
     const [financeSubTab, setFinanceSubTab] = useState<'expenses' | 'savings' | 'budget'>('expenses');
     const [financeViewMode, setFinanceViewMode] = useState<'list' | 'calendar'>('list');
@@ -49,15 +51,19 @@ export const useFinance = () => {
                 cycle_start_date: cycle,
                 updated_at: new Date().toISOString()
             }).eq('id', userSettings.id);
+            showToast(lang === 'id' ? '☁️ Tersimpan ke cloud' : '☁️ Saved to cloud', 'cloud', 1800);
         } else {
             const { data } = await supabase.from('user_settings').insert([{
                 user_id: currentUser.id,
                 total_monthly_budget: budget,
                 cycle_start_date: cycle
             }]).select();
-            if (data) setUserSettings(data[0]);
+            if (data) {
+                setUserSettings(data[0]);
+                showToast(lang === 'id' ? '☁️ Tersimpan ke cloud' : '☁️ Saved to cloud', 'cloud', 1800);
+            }
         }
-    }, [currentUser, userSettings.id, setUserSettings]);
+    }, [currentUser, userSettings.id, setUserSettings, showToast, lang]);
 
     const setTotalMonthlyBudget = useCallback((value: number) => {
         setUserSettings(prev => ({ ...prev, total_monthly_budget: value }));
@@ -223,6 +229,7 @@ export const useFinance = () => {
                     setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e));
                     setEditingExpenseId(null);
                     setNewExpense({ description: '', amount: '', category: 'Others' });
+                    showToast(lang === 'id' ? '✏️ Pengeluaran diperbarui' : '✏️ Expense updated');
                 }
             } else {
                 const { data } = await supabase.from('expenses').insert([{
@@ -235,6 +242,7 @@ export const useFinance = () => {
                 if (data) {
                     setExpenses([data[0], ...expenses]);
                     setNewExpense({ description: '', amount: '', category: 'Others' });
+                    showToast(lang === 'id' ? '✅ Pengeluaran ditambahkan' : '✅ Expense added');
                 }
             }
         }
@@ -243,6 +251,7 @@ export const useFinance = () => {
     const deleteExpense = async (id: string) => {
         if (window.confirm(t.confirmDelete) && !(await supabase.from('expenses').delete().eq('id', id)).error) {
             setExpenses(expenses.filter(x => x.id !== id));
+            showToast(lang === 'id' ? '🗑️ Pengeluaran dihapus' : '🗑️ Expense deleted', 'info');
         }
     };
 
@@ -260,7 +269,10 @@ export const useFinance = () => {
             user_id: currentUser.id,
             date: new Date().toISOString()
         }]).select();
-        if (data) setExpenses([data[0], ...expenses]);
+        if (data) {
+            setExpenses([data[0], ...expenses]);
+            showToast(`⚡ ${action.label} — ${lang === 'id' ? 'tercatat' : 'recorded'}`);
+        }
     };
 
     const handleAddQuickAction = () => {
@@ -282,11 +294,15 @@ export const useFinance = () => {
                 }]);
             }
             setNewQuickAction({ label: '', amount: '', category: 'Transport' });
+            showToast(editingQuickActionId ? (lang === 'id' ? '✏️ Aksi cepat diperbarui' : '✏️ Quick action updated') : (lang === 'id' ? '✅ Aksi cepat ditambahkan' : '✅ Quick action added'));
         }
     };
 
     const deleteQuickAction = (id: string) => {
-        if (window.confirm(t.confirmDelete)) setQuickActions(quickActions.filter(q => q.id !== id));
+        if (window.confirm(t.confirmDelete)) {
+            setQuickActions(quickActions.filter(q => q.id !== id));
+            showToast(lang === 'id' ? '🗑️ Aksi cepat dihapus' : '🗑️ Quick action deleted', 'info');
+        }
     };
 
     const handleAddSubscription = () => {
@@ -299,11 +315,15 @@ export const useFinance = () => {
                 dayOfMonth: parseInt(newSubscription.day)
             }]);
             setNewSubscription({ label: '', amount: '', category: 'Bills', day: '' });
+            showToast(lang === 'id' ? '✅ Langganan ditambahkan' : '✅ Subscription added');
         }
     };
 
     const deleteSubscription = (id: string) => {
-        if (window.confirm(t.confirmDelete)) setSubscriptions(subscriptions.filter(s => s.id !== id));
+        if (window.confirm(t.confirmDelete)) {
+            setSubscriptions(subscriptions.filter(s => s.id !== id));
+            showToast(lang === 'id' ? '🗑️ Langganan dihapus' : '🗑️ Subscription deleted', 'info');
+        }
     };
 
     const handleAddSaving = async () => {
@@ -318,6 +338,7 @@ export const useFinance = () => {
             setSavings([...savings, data[0]]);
             setNewSaving({ name: '', target: '' });
             setIsEditingSavings(false);
+            showToast(lang === 'id' ? '✅ Target tabungan ditambahkan' : '✅ Saving goal added');
         }
     };
 
@@ -329,12 +350,16 @@ export const useFinance = () => {
             confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ['#10B981', '#3B82F6'] });
         }
         const { data } = await supabase.from('savings').update({ current: newCurrent }).eq('id', id).select();
-        if (data) setSavings(savings.map(s => s.id === id ? data[0] : s));
+        if (data) {
+            setSavings(savings.map(s => s.id === id ? data[0] : s));
+            showToast(lang === 'id' ? '💰 Tabungan diperbarui' : '💰 Saving updated');
+        }
     };
 
     const deleteSaving = async (id: string) => {
         if (window.confirm(t.confirmDelete) && !(await supabase.from('savings').delete().eq('id', id)).error) {
             setSavings(savings.filter(s => s.id !== id));
+            showToast(lang === 'id' ? '🗑️ Tabungan dihapus' : '🗑️ Saving deleted', 'info');
         }
     };
 
@@ -352,6 +377,7 @@ export const useFinance = () => {
             }]);
         }
         fetchData();
+        showToast(lang === 'id' ? '✅ Budget kategori disimpan' : '✅ Category budget saved');
     };
 
     return {

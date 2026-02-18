@@ -4,10 +4,12 @@ import confetti from 'canvas-confetti';
 import { supabase } from '../services/supabaseClient';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
+import { useToast } from '../components/Toast';
 
 export const useHabits = () => {
     const { lang, currentUser, habits, setHabits } = useApp();
     const t = translations[lang];
+    const { showToast } = useToast();
 
     const [newHabit, setNewHabit] = useState('');
 
@@ -22,12 +24,14 @@ export const useHabits = () => {
         if (data) {
             setHabits([...habits, data[0]]);
             setNewHabit('');
+            showToast(lang === 'id' ? '✅ Kebiasaan ditambahkan' : '✅ Habit added');
         }
     };
 
     const deleteHabit = async (id: string) => {
         if (window.confirm(t.confirmDelete) && !(await supabase.from('habits').delete().eq('id', id)).error) {
             setHabits(habits.filter(h => h.id !== id));
+            showToast(lang === 'id' ? '🗑️ Kebiasaan dihapus' : '🗑️ Habit deleted', 'info');
         }
     };
 
@@ -65,7 +69,12 @@ export const useHabits = () => {
 
         if (!isCompleted) confetti({ particleCount: 30, spread: 50, origin: { y: 0.6 }, colors: ['#F59E0B', '#EF4444'] });
         const { data } = await supabase.from('habits').update({ completed_dates: newDates, streak }).eq('id', id).select();
-        if (data) setHabits(habits.map(h => h.id === id ? data[0] : h));
+        if (data) {
+            setHabits(habits.map(h => h.id === id ? data[0] : h));
+            showToast(!isCompleted
+                ? (lang === 'id' ? '🔥 Kebiasaan selesai!' : '🔥 Habit completed!')
+                : (lang === 'id' ? '↩️ Dibatalkan' : '↩️ Undone'), !isCompleted ? 'success' : 'info');
+        }
     };
 
     return {

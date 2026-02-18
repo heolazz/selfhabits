@@ -9,6 +9,7 @@ import { Finance } from './pages/Finance';
 import { Habits } from './pages/Habits';
 import { Journal } from './pages/Journal';
 import { Settings } from './pages/Settings';
+import { ToastProvider } from './components/Toast';
 import './index.css';
 
 const AppRoutes = () => {
@@ -53,9 +54,11 @@ const AppRoutes = () => {
 export default function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </ToastProvider>
     </AppProvider>
   );
 }
