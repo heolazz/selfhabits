@@ -27,6 +27,18 @@ export const Settings = () => {
                 }
                 window.deferredPrompt = null;
             });
+        } else {
+            // Check if it's iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+            if (isIOS) {
+                alert(lang === 'id'
+                    ? 'Di iPhone/iPad: Tekan tombol "Share" (kotak dengan panah ke atas) di bawah Safari, lalu pilih "Add to Home Screen".'
+                    : 'On iOS/iPadOS: Tap the "Share" button at the bottom of Safari and select "Add to Home Screen".');
+            } else {
+                alert(lang === 'id'
+                    ? 'Aplikasi sudah terinstal atau browser Anda tidak mendukung instalasi otomatis. Gunakan menu browser "Tambahkan ke layar utama".'
+                    : 'App already installed or your browser doesn\'t support automatic installation. Use browser menu "Add to home screen".');
+            }
         }
     };
 

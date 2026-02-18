@@ -14,6 +14,15 @@ import './index.css';
 const AppRoutes = () => {
   const { currentUser, loading } = useApp();
 
+  React.useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      window.deferredPrompt = e;
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-body)] text-[var(--text-muted)] font-medium">
