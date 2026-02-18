@@ -112,7 +112,7 @@ export const Settings = () => {
                 {/* Language Item */}
                 <div className="p-6 md:px-8 flex items-center justify-between hover:bg-[var(--bg-input)] transition-colors group cursor-pointer relative overflow-hidden">
                     <div className="flex items-center gap-5">
-                        <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-zinc-800 flex items-center justify-center text-[var(--text-main)] transition-colors group-hover:bg-[var(--bg-card)]">
+                        <div className="w-12 h-12 rounded-xl bg-[var(--bg-input)] flex items-center justify-center text-[var(--text-main)] transition-colors group-hover:bg-[var(--bg-card)]">
                             <Languages size={20} />
                         </div>
                         <div className="flex flex-col text-left">
@@ -139,7 +139,7 @@ export const Settings = () => {
                     className="p-6 md:px-8 flex items-center justify-between hover:bg-[var(--bg-input)] transition-colors group cursor-pointer"
                 >
                     <div className="flex items-center gap-5">
-                        <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-zinc-800 flex items-center justify-center text-[var(--text-main)] transition-colors group-hover:bg-[var(--bg-card)]">
+                        <div className="w-12 h-12 rounded-xl bg-[var(--bg-input)] flex items-center justify-center text-[var(--text-main)] transition-colors group-hover:bg-[var(--bg-card)]">
                             {theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
                         </div>
                         <div className="flex flex-col text-left">
