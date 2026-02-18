@@ -2,8 +2,12 @@
 
 export interface User {
   id: string;
-  full_name?: string; 
   email?: string;
+  user_metadata?: {
+    full_name?: string;
+    avatar_url?: string;
+    [key: string]: any;
+  };
 }
 
 export interface Expense {
@@ -11,7 +15,7 @@ export interface Expense {
   user_id: string;
   description: string;
   amount: number;
-  date: string; 
+  date: string;
   category: string;
   created_at?: string;
 }
@@ -21,8 +25,8 @@ export interface Habit {
   user_id: string;
   name: string;
   streak: number;
-  completed_dates: string[]; 
-  reminder_time?: string;   
+  completed_dates: string[];
+  reminder_time?: string;
   created_at?: string;
 }
 
@@ -31,7 +35,7 @@ export interface Note {
   user_id: string;
   title: string;
   content: string;
-  updated_at?: string;       
+  updated_at?: string;
   created_at?: string;
 }
 
@@ -41,7 +45,7 @@ export interface Budget {
   user_id: string;
   category: string;
   amount: number;
-  month_year: string; 
+  month_year: string;
 }
 
 export interface Saving {
@@ -58,3 +62,18 @@ export interface Saving {
 export type AppTab = 'dashboard' | 'finance' | 'habits' | 'notes' | 'settings';
 export type Language = 'en' | 'id';
 export type Theme = 'light' | 'dark';
+
+export interface QuickAction {
+  id: string;
+  label: string;
+  amount: number;
+  category: string;
+}
+
+export interface Subscription {
+  id: string;
+  label: string;
+  amount: number;
+  category: string;
+  dayOfMonth: number;
+}
