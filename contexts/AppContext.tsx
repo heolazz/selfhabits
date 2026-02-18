@@ -31,6 +31,7 @@ interface AppContextType {
     setUserSettings: React.Dispatch<React.SetStateAction<UserSettings>>;
     fetchData: () => Promise<void>;
     handleLogout: () => Promise<void>;
+    isOffline: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -51,6 +52,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         total_monthly_budget: 0,
         cycle_start_date: 1
     });
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+    // Monitor Online/Offline Status
+    useEffect(() => {
+        const handleOnline = () => setIsOffline(false);
+        const handleOffline = () => setIsOffline(true);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    // Load cached data on mount
+    useEffect(() => {
+        const cached = localStorage.getItem('zenith_cached_data');
+        if (cached) {
+            try {
+                const data = JSON.parse(cached);
+                if (data.expenses) setExpenses(data.expenses);
+                if (data.habits) setHabits(data.habits);
+                if (data.notes) setNotes(data.notes);
+                if (data.budgets) setBudgets(data.budgets);
+                if (data.savings) setSavings(data.savings);
+                if (data.userSettings) setUserSettings(data.userSettings);
+            } catch (e) {
+                console.error('Failed to load cached data', e);
+            }
+        }
+    }, []);
 
     useEffect(() => {
         localStorage.setItem('zenith_lang', lang);
@@ -83,12 +115,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             supabase.from('savings').select('*').order('created_at', { ascending: true }),
             supabase.from('user_settings').select('*').eq('user_id', currentUser.id).single()
         ]);
+
+        if (exp.error || hab.error || not.error || bud.error || sav.error) {
+            console.warn('Network error, serving cached data if available.');
+            setIsOffline(true);
+            return;
+        }
+
         if (exp.data) setExpenses(exp.data);
         if (hab.data) setHabits(hab.data);
         if (not.data) setNotes(not.data);
         if (bud.data) setBudgets(bud.data);
         if (sav.data) setSavings(sav.data);
         if (settings.data) setUserSettings(settings.data);
+
+        // Cache successful fetch
+        localStorage.setItem('zenith_cached_data', JSON.stringify({
+            expenses: exp.data || expenses,
+            habits: hab.data || habits,
+            notes: not.data || notes,
+            budgets: bud.data || budgets,
+            savings: sav.data || savings,
+            userSettings: settings.data || userSettings
+        }));
     };
 
     const handleLogout = async () => {
@@ -111,7 +160,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             budgets, setBudgets,
             savings, setSavings,
             userSettings, setUserSettings,
-            fetchData, handleLogout
+            fetchData, handleLogout, isOffline
         }}>
             {children}
         </AppContext.Provider>

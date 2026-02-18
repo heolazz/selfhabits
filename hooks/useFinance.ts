@@ -6,6 +6,7 @@ import confetti from 'canvas-confetti';
 import { translations } from '../constants/translations';
 import { toLocalDateStr, isSameDay } from '../utils/dateHelpers';
 import { useToast } from '../components/Toast';
+import { useSync, generateTempId } from './useSync';
 
 export const useFinance = () => {
     const {
@@ -19,10 +20,12 @@ export const useFinance = () => {
         setBudgets,
         fetchData,
         userSettings,
-        setUserSettings
+        setUserSettings,
+        isOffline
     } = useApp();
     const t = translations[lang];
     const { showToast } = useToast();
+    const { addToQueue } = useSync();
 
     const [financeSubTab, setFinanceSubTab] = useState<'expenses' | 'savings' | 'budget'>('expenses');
     const [financeViewMode, setFinanceViewMode] = useState<'list' | 'calendar'>('list');
@@ -45,6 +48,19 @@ export const useFinance = () => {
     // Auto-save to Supabase with debounce (1.5 seconds after last change)
     const saveSettingsToCloud = useCallback(async (budget: number, cycle: number) => {
         if (!currentUser) return;
+
+        if (isOffline) {
+            addToQueue({
+                table: 'user_settings',
+                type: userSettings.id ? 'UPDATE' : 'INSERT',
+                payload: { total_monthly_budget: budget, cycle_start_date: cycle, updated_at: new Date().toISOString() },
+                matchField: 'id',
+                matchValue: userSettings.id
+            });
+            showToast(lang === 'id' ? 'Tersimpan lokal (Offline)' : 'Saved locally (Offline)', 'info');
+            return;
+        }
+
         if (userSettings.id) {
             await supabase.from('user_settings').update({
                 total_monthly_budget: budget,
@@ -219,6 +235,16 @@ export const useFinance = () => {
         if (!currentUser) return;
         if (newExpense.description && newExpense.amount) {
             if (editingExpenseId) {
+                if (isOffline) {
+                    const updated = expenses.map(e => e.id === editingExpenseId ? { ...e, description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, updated_at: new Date().toISOString() } : e);
+                    setExpenses(updated);
+                    addToQueue({ table: 'expenses', type: 'UPDATE', payload: { description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, updated_at: new Date().toISOString() }, matchField: 'id', matchValue: editingExpenseId });
+                    setEditingExpenseId(null);
+                    setNewExpense({ description: '', amount: '', category: 'Others' });
+                    showToast(lang === 'id' ? 'Pengeluaran diperbarui (Offline)' : 'Expense updated (Offline)', 'update');
+                    return;
+                }
+
                 const { data } = await supabase.from('expenses').update({
                     description: newExpense.description,
                     amount: parseFloat(newExpense.amount),
@@ -232,6 +258,18 @@ export const useFinance = () => {
                     showToast(lang === 'id' ? 'Pengeluaran diperbarui' : 'Expense updated', 'update');
                 }
             } else {
+                if (isOffline) {
+                    const tempId = generateTempId();
+                    const newExp: any = { id: tempId, user_id: currentUser.id, description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, date: new Date().toISOString() };
+                    setExpenses([newExp, ...expenses]);
+
+                    addToQueue({ table: 'expenses', type: 'INSERT', payload: { description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, user_id: currentUser.id, date: new Date().toISOString() }, matchValue: tempId });
+
+                    setNewExpense({ description: '', amount: '', category: 'Others' });
+                    showToast(lang === 'id' ? 'Pengeluaran ditambahkan (Offline)' : 'Expense added (Offline)', 'success');
+                    return;
+                }
+
                 const { data } = await supabase.from('expenses').insert([{
                     description: newExpense.description,
                     amount: parseFloat(newExpense.amount),
@@ -249,6 +287,15 @@ export const useFinance = () => {
     };
 
     const deleteExpense = async (id: string) => {
+        if (isOffline) {
+            if (window.confirm(t.confirmDelete)) {
+                setExpenses(expenses.filter(x => x.id !== id));
+                addToQueue({ table: 'expenses', type: 'DELETE', matchField: 'id', matchValue: id, payload: {} });
+                showToast(lang === 'id' ? 'Pengeluaran dihapus (Offline)' : 'Expense deleted (Offline)', 'delete');
+            }
+            return;
+        }
+
         if (window.confirm(t.confirmDelete) && !(await supabase.from('expenses').delete().eq('id', id)).error) {
             setExpenses(expenses.filter(x => x.id !== id));
             showToast(lang === 'id' ? 'Pengeluaran dihapus' : 'Expense deleted', 'delete');
@@ -257,6 +304,17 @@ export const useFinance = () => {
 
     const handleQuickActionClick = async (action: QuickAction | Subscription) => {
         if (!currentUser) return;
+
+        if (isOffline) {
+            confetti({ particleCount: 40, spread: 40, origin: { y: 0.6 }, colors: ['#2563EB', '#ffffff'], disableForReducedMotion: true, ticks: 100, gravity: 2, scalar: 0.8 });
+            const tempId = generateTempId();
+            const newExp: any = { id: tempId, user_id: currentUser.id, description: action.label, amount: action.amount, category: action.category, date: new Date().toISOString() };
+            setExpenses([newExp, ...expenses]);
+            addToQueue({ table: 'expenses', type: 'INSERT', payload: { description: action.label, amount: action.amount, category: action.category, user_id: currentUser.id, date: new Date().toISOString() }, matchValue: tempId });
+            showToast(`${action.label} — ${lang === 'id' ? 'tercatat (Offline)' : 'recorded (Offline)'}`, 'success');
+            return;
+        }
+
         confetti({
             particleCount: 40, spread: 40, origin: { y: 0.6 },
             colors: ['#2563EB', '#ffffff'], disableForReducedMotion: true,
@@ -328,6 +386,18 @@ export const useFinance = () => {
 
     const handleAddSaving = async () => {
         if (!currentUser || !newSaving.name || !newSaving.target) return;
+
+        if (isOffline) {
+            const tempId = generateTempId();
+            const newSav: any = { id: tempId, user_id: currentUser.id, name: newSaving.name, target: parseFloat(newSaving.target), current: 0, created_at: new Date().toISOString() };
+            setSavings([...savings, newSav]);
+            addToQueue({ table: 'savings', type: 'INSERT', payload: { user_id: currentUser.id, name: newSaving.name, target: parseFloat(newSaving.target), current: 0 }, matchValue: tempId });
+            setNewSaving({ name: '', target: '' });
+            setIsEditingSavings(false);
+            showToast(lang === 'id' ? 'Target tabungan ditambahkan (Offline)' : 'Saving goal added (Offline)', 'success');
+            return;
+        }
+
         const { data } = await supabase.from('savings').insert([{
             user_id: currentUser.id,
             name: newSaving.name,
@@ -349,6 +419,14 @@ export const useFinance = () => {
         if (newCurrent >= save.target && save.current < save.target) {
             confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ['#10B981', '#3B82F6'] });
         }
+
+        if (isOffline) {
+            setSavings(savings.map(s => s.id === id ? { ...s, current: newCurrent } : s));
+            addToQueue({ table: 'savings', type: 'UPDATE', payload: { current: newCurrent }, matchField: 'id', matchValue: id });
+            showToast(lang === 'id' ? 'Tabungan diperbarui (Offline)' : 'Saving updated (Offline)', 'update');
+            return;
+        }
+
         const { data } = await supabase.from('savings').update({ current: newCurrent }).eq('id', id).select();
         if (data) {
             setSavings(savings.map(s => s.id === id ? data[0] : s));
@@ -357,6 +435,15 @@ export const useFinance = () => {
     };
 
     const deleteSaving = async (id: string) => {
+        if (isOffline) {
+            if (window.confirm(t.confirmDelete)) {
+                setSavings(savings.filter(s => s.id !== id));
+                addToQueue({ table: 'savings', type: 'DELETE', matchField: 'id', matchValue: id, payload: {} });
+                showToast(lang === 'id' ? 'Tabungan dihapus (Offline)' : 'Saving deleted (Offline)', 'delete');
+            }
+            return;
+        }
+
         if (window.confirm(t.confirmDelete) && !(await supabase.from('savings').delete().eq('id', id)).error) {
             setSavings(savings.filter(s => s.id !== id));
             showToast(lang === 'id' ? 'Tabungan dihapus' : 'Saving deleted', 'delete');
@@ -365,7 +452,23 @@ export const useFinance = () => {
 
     const saveBudget = async (category: string, amount: number) => {
         if (!currentUser) return;
+
         const existing = budgets.find(b => b.category === category);
+
+        if (isOffline) {
+            if (existing) {
+                setBudgets(budgets.map(b => b.category === category ? { ...b, amount } : b));
+                addToQueue({ table: 'budgets', type: 'UPDATE', payload: { amount }, matchField: 'id', matchValue: existing.id });
+            } else {
+                const tempId = generateTempId();
+                const newBudget: any = { id: tempId, user_id: currentUser.id, category, amount, month_year: selectedDate.slice(0, 7) };
+                setBudgets([...budgets, newBudget]);
+                addToQueue({ table: 'budgets', type: 'INSERT', payload: { user_id: currentUser.id, category, amount, month_year: selectedDate.slice(0, 7) }, matchValue: tempId });
+            }
+            showToast(lang === 'id' ? 'Budget kategori disimpan (Offline)' : 'Category budget saved (Offline)', 'success');
+            return;
+        }
+
         if (existing) {
             await supabase.from('budgets').update({ amount }).eq('id', existing.id);
         } else {

@@ -10,10 +10,12 @@ import { Habits } from './pages/Habits';
 import { Journal } from './pages/Journal';
 import { Settings } from './pages/Settings';
 import { ToastProvider } from './components/Toast';
+import { useSync } from './hooks/useSync';
 import './index.css';
 
 const AppRoutes = () => {
   const { currentUser, loading } = useApp();
+  useSync(true); // Enable Global Sync
 
   React.useEffect(() => {
     const handler = (e: any) => {
