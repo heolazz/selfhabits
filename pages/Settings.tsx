@@ -42,6 +42,24 @@ export const Settings = () => {
         }
     };
 
+    // Check if the app is already installed/running in standalone mode
+    const [isStandalone, setIsStandalone] = React.useState(false);
+
+    React.useEffect(() => {
+        const checkStandalone = () => {
+            const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches
+                || (navigator as any).standalone
+                || document.referrer.includes('android-app://');
+            setIsStandalone(isStandaloneMode);
+        };
+
+        checkStandalone();
+        // Also listen for change (e.g. if user installs while app is open)
+        const mediaQuery = window.matchMedia('(display-mode: standalone)');
+        mediaQuery.addEventListener('change', checkStandalone);
+        return () => mediaQuery.removeEventListener('change', checkStandalone);
+    }, []);
+
     const handleLogout = async () => {
         await supabase.auth.signOut();
         window.location.reload();
@@ -62,27 +80,31 @@ export const Settings = () => {
                 <p className="text-sm text-zinc-500 font-medium">{currentUser?.email}</p>
             </div>
 
-            {/* Premium Install Banner */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 p-8 text-white shadow-sm text-left">
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-5">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-400/30 backdrop-blur-sm shrink-0">
-                            <Smartphone size={24} />
+            {/* Premium Install Banner (Hidden if already standalone) */}
+            {!isStandalone && (
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 p-8 text-white shadow-sm text-left animate-in fade-in zoom-in duration-500">
+                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-5">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-400/30 backdrop-blur-sm shrink-0">
+                                <item className="animate-bounce">
+                                    <Smartphone size={24} />
+                                </item>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold tracking-tight">Install App</h3>
+                                <p className="text-[13px] text-blue-50/90 font-medium">Add to Home Screen for the best experience</p>
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-xl font-bold tracking-tight">Install App</h3>
-                            <p className="text-[13px] text-blue-50/90 font-medium">Add to Home Screen for the best experience</p>
-                        </div>
+                        <button
+                            onClick={handleInstallPWA}
+                            className="flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-blue-600 shadow-sm transition-transform active:scale-95 hover:bg-blue-50 shrink-0 text-sm"
+                        >
+                            <Download size={18} />
+                            Install Now
+                        </button>
                     </div>
-                    <button
-                        onClick={handleInstallPWA}
-                        className="flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-blue-600 shadow-sm transition-transform active:scale-95 hover:bg-blue-50 shrink-0 text-sm"
-                    >
-                        <Download size={18} />
-                        Install Now
-                    </button>
                 </div>
-            </div>
+            )}
 
 
             {/* Settings List Card */}
