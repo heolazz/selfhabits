@@ -698,7 +698,7 @@ export const Finance = () => {
                             const isOver = spentAmount > budgetAmount && budgetAmount > 0;
 
                             return (
-                                <div key={cat} className={`apple-card p-5 border-2 transition-all group ${isEditingBudget ? 'border-dashed border-[var(--primary)] bg-[var(--primary)]/5' : 'border-transparent bg-[var(--bg-card)]'}`}>
+                                <div key={cat} className={`apple-card p-5 transition-all group ${isEditingBudget ? 'border-2 border-dashed border-[var(--primary)] bg-[var(--primary)]/5' : 'border border-[var(--border)] bg-[var(--bg-card)]'}`}>
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="w-9 h-9 rounded-full bg-[var(--bg-input)] flex items-center justify-center text-[var(--text-main)] group-hover:scale-110 transition-transform">
                                             {getCategoryIcon(cat)}
