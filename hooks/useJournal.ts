@@ -29,7 +29,7 @@ export const useJournal = () => {
             setNoteTitle(data[0].title);
             setNoteContent(data[0].content);
             setIsMobileNoteEditing(true);
-            showToast(lang === 'id' ? '📝 Catatan baru dibuat' : '📝 New note created');
+            showToast(lang === 'id' ? 'Catatan baru dibuat' : 'New note created', 'success');
         }
     };
 
@@ -42,7 +42,7 @@ export const useJournal = () => {
         }).eq('id', activeNoteId).select();
         if (data) {
             setNotes(notes.map(n => n.id === activeNoteId ? data[0] : n));
-            showToast(lang === 'id' ? '☁️ Catatan disimpan' : '☁️ Note saved', 'cloud', 1800);
+            showToast(lang === 'id' ? 'Catatan disimpan' : 'Note saved', 'cloud', 1800);
         }
     };
 
@@ -55,7 +55,7 @@ export const useJournal = () => {
                 setNoteTitle('');
                 setNoteContent('');
             }
-            showToast(lang === 'id' ? '🗑️ Catatan dihapus' : '🗑️ Note deleted', 'info');
+            showToast(lang === 'id' ? 'Catatan dihapus' : 'Note deleted', 'delete');
         }
     };
 

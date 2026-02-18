@@ -51,7 +51,7 @@ export const useFinance = () => {
                 cycle_start_date: cycle,
                 updated_at: new Date().toISOString()
             }).eq('id', userSettings.id);
-            showToast(lang === 'id' ? '☁️ Tersimpan ke cloud' : '☁️ Saved to cloud', 'cloud', 1800);
+            showToast(lang === 'id' ? 'Tersimpan ke cloud' : 'Saved to cloud', 'cloud', 1800);
         } else {
             const { data } = await supabase.from('user_settings').insert([{
                 user_id: currentUser.id,
@@ -60,7 +60,7 @@ export const useFinance = () => {
             }]).select();
             if (data) {
                 setUserSettings(data[0]);
-                showToast(lang === 'id' ? '☁️ Tersimpan ke cloud' : '☁️ Saved to cloud', 'cloud', 1800);
+                showToast(lang === 'id' ? 'Tersimpan ke cloud' : 'Saved to cloud', 'cloud', 1800);
             }
         }
     }, [currentUser, userSettings.id, setUserSettings, showToast, lang]);
@@ -229,7 +229,7 @@ export const useFinance = () => {
                     setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e));
                     setEditingExpenseId(null);
                     setNewExpense({ description: '', amount: '', category: 'Others' });
-                    showToast(lang === 'id' ? '✏️ Pengeluaran diperbarui' : '✏️ Expense updated');
+                    showToast(lang === 'id' ? 'Pengeluaran diperbarui' : 'Expense updated', 'update');
                 }
             } else {
                 const { data } = await supabase.from('expenses').insert([{
@@ -242,7 +242,7 @@ export const useFinance = () => {
                 if (data) {
                     setExpenses([data[0], ...expenses]);
                     setNewExpense({ description: '', amount: '', category: 'Others' });
-                    showToast(lang === 'id' ? '✅ Pengeluaran ditambahkan' : '✅ Expense added');
+                    showToast(lang === 'id' ? 'Pengeluaran ditambahkan' : 'Expense added', 'success');
                 }
             }
         }
@@ -251,7 +251,7 @@ export const useFinance = () => {
     const deleteExpense = async (id: string) => {
         if (window.confirm(t.confirmDelete) && !(await supabase.from('expenses').delete().eq('id', id)).error) {
             setExpenses(expenses.filter(x => x.id !== id));
-            showToast(lang === 'id' ? '🗑️ Pengeluaran dihapus' : '🗑️ Expense deleted', 'info');
+            showToast(lang === 'id' ? 'Pengeluaran dihapus' : 'Expense deleted', 'delete');
         }
     };
 
@@ -271,7 +271,7 @@ export const useFinance = () => {
         }]).select();
         if (data) {
             setExpenses([data[0], ...expenses]);
-            showToast(`⚡ ${action.label} — ${lang === 'id' ? 'tercatat' : 'recorded'}`);
+            showToast(`${action.label} — ${lang === 'id' ? 'tercatat' : 'recorded'}`, 'success');
         }
     };
 
@@ -294,14 +294,14 @@ export const useFinance = () => {
                 }]);
             }
             setNewQuickAction({ label: '', amount: '', category: 'Transport' });
-            showToast(editingQuickActionId ? (lang === 'id' ? '✏️ Aksi cepat diperbarui' : '✏️ Quick action updated') : (lang === 'id' ? '✅ Aksi cepat ditambahkan' : '✅ Quick action added'));
+            showToast(editingQuickActionId ? (lang === 'id' ? 'Aksi cepat diperbarui' : 'Quick action updated') : (lang === 'id' ? 'Aksi cepat ditambahkan' : 'Quick action added'), editingQuickActionId ? 'update' : 'success');
         }
     };
 
     const deleteQuickAction = (id: string) => {
         if (window.confirm(t.confirmDelete)) {
             setQuickActions(quickActions.filter(q => q.id !== id));
-            showToast(lang === 'id' ? '🗑️ Aksi cepat dihapus' : '🗑️ Quick action deleted', 'info');
+            showToast(lang === 'id' ? 'Aksi cepat dihapus' : 'Quick action deleted', 'delete');
         }
     };
 
@@ -315,14 +315,14 @@ export const useFinance = () => {
                 dayOfMonth: parseInt(newSubscription.day)
             }]);
             setNewSubscription({ label: '', amount: '', category: 'Bills', day: '' });
-            showToast(lang === 'id' ? '✅ Langganan ditambahkan' : '✅ Subscription added');
+            showToast(lang === 'id' ? 'Langganan ditambahkan' : 'Subscription added', 'success');
         }
     };
 
     const deleteSubscription = (id: string) => {
         if (window.confirm(t.confirmDelete)) {
             setSubscriptions(subscriptions.filter(s => s.id !== id));
-            showToast(lang === 'id' ? '🗑️ Langganan dihapus' : '🗑️ Subscription deleted', 'info');
+            showToast(lang === 'id' ? 'Langganan dihapus' : 'Subscription deleted', 'delete');
         }
     };
 
@@ -338,7 +338,7 @@ export const useFinance = () => {
             setSavings([...savings, data[0]]);
             setNewSaving({ name: '', target: '' });
             setIsEditingSavings(false);
-            showToast(lang === 'id' ? '✅ Target tabungan ditambahkan' : '✅ Saving goal added');
+            showToast(lang === 'id' ? 'Target tabungan ditambahkan' : 'Saving goal added', 'success');
         }
     };
 
@@ -352,14 +352,14 @@ export const useFinance = () => {
         const { data } = await supabase.from('savings').update({ current: newCurrent }).eq('id', id).select();
         if (data) {
             setSavings(savings.map(s => s.id === id ? data[0] : s));
-            showToast(lang === 'id' ? '💰 Tabungan diperbarui' : '💰 Saving updated');
+            showToast(lang === 'id' ? 'Tabungan diperbarui' : 'Saving updated', 'update');
         }
     };
 
     const deleteSaving = async (id: string) => {
         if (window.confirm(t.confirmDelete) && !(await supabase.from('savings').delete().eq('id', id)).error) {
             setSavings(savings.filter(s => s.id !== id));
-            showToast(lang === 'id' ? '🗑️ Tabungan dihapus' : '🗑️ Saving deleted', 'info');
+            showToast(lang === 'id' ? 'Tabungan dihapus' : 'Saving deleted', 'delete');
         }
     };
 
@@ -377,7 +377,7 @@ export const useFinance = () => {
             }]);
         }
         fetchData();
-        showToast(lang === 'id' ? '✅ Budget kategori disimpan' : '✅ Category budget saved');
+        showToast(lang === 'id' ? 'Budget kategori disimpan' : 'Category budget saved', 'success');
     };
 
     return {

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Check, AlertCircle, Cloud, Trash2, X } from 'lucide-react';
+import { Check, AlertCircle, Cloud, Trash2, X, Info, Pencil } from 'lucide-react';
 
 // --- Types ---
-type ToastType = 'success' | 'error' | 'info' | 'cloud';
+type ToastType = 'success' | 'error' | 'info' | 'cloud' | 'delete' | 'update';
 
 interface Toast {
     id: string;
@@ -41,15 +41,19 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
     const icons: Record<ToastType, React.ReactNode> = {
         success: <Check size={16} />,
         error: <AlertCircle size={16} />,
-        info: <Check size={16} />,
-        cloud: <Cloud size={16} />
+        info: <Info size={16} />,
+        cloud: <Cloud size={16} />,
+        delete: <Trash2 size={16} />,
+        update: <Check size={16} /> // Or Pencil, but Check implies "Updated/Done" nicely
     };
 
     const colors: Record<ToastType, string> = {
         success: 'bg-emerald-500',
         error: 'bg-red-500',
         info: 'bg-blue-500',
-        cloud: 'bg-sky-500'
+        cloud: 'bg-sky-500',
+        delete: 'bg-rose-500',
+        update: 'bg-amber-500' // Or blue/primary
     };
 
     return (

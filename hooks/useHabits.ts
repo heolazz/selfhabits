@@ -24,14 +24,14 @@ export const useHabits = () => {
         if (data) {
             setHabits([...habits, data[0]]);
             setNewHabit('');
-            showToast(lang === 'id' ? '✅ Kebiasaan ditambahkan' : '✅ Habit added');
+            showToast(lang === 'id' ? 'Kebiasaan ditambahkan' : 'Habit added', 'success');
         }
     };
 
     const deleteHabit = async (id: string) => {
         if (window.confirm(t.confirmDelete) && !(await supabase.from('habits').delete().eq('id', id)).error) {
             setHabits(habits.filter(h => h.id !== id));
-            showToast(lang === 'id' ? '🗑️ Kebiasaan dihapus' : '🗑️ Habit deleted', 'info');
+            showToast(lang === 'id' ? 'Kebiasaan dihapus' : 'Habit deleted', 'delete');
         }
     };
 
@@ -72,8 +72,8 @@ export const useHabits = () => {
         if (data) {
             setHabits(habits.map(h => h.id === id ? data[0] : h));
             showToast(!isCompleted
-                ? (lang === 'id' ? '🔥 Kebiasaan selesai!' : '🔥 Habit completed!')
-                : (lang === 'id' ? '↩️ Dibatalkan' : '↩️ Undone'), !isCompleted ? 'success' : 'info');
+                ? (lang === 'id' ? 'Kebiasaan selesai!' : 'Habit completed!')
+                : (lang === 'id' ? 'Dibatalkan' : 'Undone'), !isCompleted ? 'success' : 'info');
         }
     };
 
