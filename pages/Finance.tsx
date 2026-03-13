@@ -127,10 +127,10 @@ export const Finance = () => {
                     onClick={() => { setSelectedDate(dateStr); setFinanceFilter('daily'); }}
                     className={`min-h-[64px] md:h-20 rounded-xl border flex flex-col items-center justify-between py-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95 ${isSelected ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-md' : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-main)]'} ${isToday ? 'ring-2 ring-[var(--warning)]' : ''}`}
                 >
-                    <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-[var(--text-main)]'}`}>{d}</span>
+                    <span className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-[var(--text-main)]'}`}>{d}</span>
                     {dayTotal > 0 && (
                         <div className="flex flex-col items-center">
-                            <span className={`text-[8px] sm:text-[10px] font-bold leading-tight ${isSelected ? 'text-blue-100' : 'text-[var(--text-muted)]'}`}>
+                            <span className={`text-[8px] sm:text-[10px] font-semibold leading-tight ${isSelected ? 'text-blue-100' : 'text-[var(--text-muted)]'}`}>
                                 {formatShortCurrency(dayTotal)}
                             </span>
                         </div>
@@ -147,7 +147,7 @@ export const Finance = () => {
                     <div className="flex justify-center mt-4 animate-in fade-in zoom-in duration-300">
                         <button
                             onClick={() => setFinanceFilter('monthly')}
-                            className="text-[11px] font-bold text-[var(--primary)] bg-[var(--primary)]/10 px-4 py-2 rounded-xl hover:bg-[var(--primary)]/20 transition-all active:scale-95 flex items-center gap-2"
+                            className="text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 px-4 py-2 rounded-xl hover:bg-[var(--primary)]/20 transition-all active:scale-95 flex items-center gap-2"
                         >
                             <Repeat size={14} />
                             {lang === 'id' ? 'Tampilkan Sebulan Penuh' : 'Show Full Month'}
@@ -215,7 +215,7 @@ export const Finance = () => {
                     {/* Date Navigator */}
                     <div className="flex items-center justify-between bg-[var(--bg-input)] p-2 rounded-xl mb-4">
                         <button onClick={() => navigateDate('prev')} className="p-2 hover:bg-[var(--bg-card)] rounded-lg text-[var(--text-muted)] transition-colors"><ArrowLeft size={18} /></button>
-                        <span className="text-sm font-bold text-[var(--text-main)] uppercase tracking-wide">
+                        <span className="text-sm font-semibold text-[var(--text-main)] uppercase tracking-wide">
                             {financeViewMode === 'calendar'
                                 ? new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'long', year: 'numeric' })
                                 : (financeFilter === 'monthly'
@@ -244,11 +244,11 @@ export const Finance = () => {
                                 <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-16 -mt-32 pointer-events-none transform group-hover:scale-110 transition-transform duration-700"></div>
                                 <div className="relative z-10 flex flex-col justify-between h-full">
                                     <div className="flex items-center justify-between mb-2">
-                                        <p className="text-blue-100 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+                                        <p className="text-blue-100 text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1">
                                             <Wallet size={14} className="opacity-80" />
                                             {financeFilter === 'daily' ? t.today : (financeFilter === 'weekly' ? t.lastSevenDays : t.thisMonth)}
                                         </p>
-                                        <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm">
+                                        <span className="bg-white/20 text-white text-[10px] font-semibold px-2 py-1 rounded-full backdrop-blur-sm">
                                             {filteredExpenses.length} {t.records}
                                         </span>
                                     </div>
@@ -277,7 +277,7 @@ export const Finance = () => {
                                         </ResponsiveContainer>
                                     </div>
                                     <div className="w-full md:w-1/2 space-y-3">
-                                        <h5 className="font-bold text-sm mb-4 text-[var(--text-main)]">{t.spendingBreakdown}</h5>
+                                        <h5 className="font-semibold text-sm mb-4 text-[var(--text-main)]">{t.spendingBreakdown}</h5>
                                         {chartData.slice(0, 4).map((entry, index) => (
                                             <div key={index} className="flex justify-between items-center text-sm">
                                                 <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full mr-3" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></div><span className="font-medium text-[var(--text-main)]">{entry.name}</span></div>
@@ -293,9 +293,9 @@ export const Finance = () => {
                     {/* VIEW CALENDAR */}
                     {financeViewMode === 'calendar' && (
                         <div className="mb-6 fade-in">
-                            <div className="grid grid-cols-7 gap-2 mb-2 text-center">
+                            <div className="grid grid-cols-7 gap-2 mb-2 text-center text-[var(--text-muted)]">
                                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                                    <div key={d} className="text-[10px] font-bold text-[var(--text-muted)] uppercase">{d}</div>
+                                    <div key={d} className="text-[10px] font-semibold uppercase">{d}</div>
                                 ))}
                             </div>
                             {renderCalendar()}
@@ -305,8 +305,8 @@ export const Finance = () => {
                     {/* --- QUICK ACTIONS BAR --- */}
                     <div className="space-y-3">
                         <div className="flex justify-between items-center px-1">
-                            <h4 className="font-bold text-sm text-[var(--text-main)] flex items-center gap-2"><Flashlight size={14} className="text-[var(--warning)]" fill="currentColor" /> {t.quickActions}</h4>
-                            <button onClick={() => setIsEditingQuickActions(!isEditingQuickActions)} className="text-[10px] font-bold text-[var(--primary)] bg-[var(--bg-input)] px-2 py-1 rounded-md hover:bg-gray-200 transition-colors">
+                            <h4 className="font-semibold text-sm text-[var(--text-main)] flex items-center gap-2"><Flashlight size={14} className="text-[var(--warning)]" fill="currentColor" /> {t.quickActions}</h4>
+                            <button onClick={() => setIsEditingQuickActions(!isEditingQuickActions)} className="text-[10px] font-semibold text-[var(--primary)] bg-[var(--bg-input)] px-2 py-1 rounded-md hover:bg-gray-200 transition-colors">
                                 {isEditingQuickActions ? t.save : t.manage}
                             </button>
                         </div>
@@ -317,7 +317,7 @@ export const Finance = () => {
                                     {quickActions.map(qa => (
                                         <div key={qa.id} className="flex items-center justify-between bg-[var(--bg-input)] p-2 rounded-lg group">
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-[var(--text-main)]">{qa.label}</span>
+                                                <span className="text-xs font-semibold text-[var(--text-main)]">{qa.label}</span>
                                                 <span className="text-[10px] text-[var(--text-muted)]">{formatCurrency(qa.amount)}</span>
                                             </div>
                                             <div className="flex gap-1">
@@ -362,8 +362,8 @@ export const Finance = () => {
                                         onClick={() => handleQuickActionClick(qa)}
                                         className="snap-start shrink-0 flex flex-col items-start justify-between min-w-[100px] p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--primary)] hover:shadow-md transition-all active:scale-95 group"
                                     >
-                                        <span className="text-[11px] font-bold text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors">{qa.label}</span>
-                                        <span className="text-[13px] font-extrabold text-[var(--text-main)] mt-1">{formatCurrency(qa.amount)}</span>
+                                        <span className="text-[11px] font-semibold text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors">{qa.label}</span>
+                                        <span className="text-sm font-bold text-[var(--text-main)] mt-1">{formatCurrency(qa.amount)}</span>
                                     </button>
                                 ))}
                                 <button onClick={() => setIsEditingQuickActions(true)} className="snap-start shrink-0 flex flex-col items-center justify-center min-w-[50px] rounded-xl border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-input)] transition-colors">
@@ -376,8 +376,8 @@ export const Finance = () => {
                     {/* --- SUBSCRIPTIONS --- */}
                     <div className="space-y-3">
                         <div className="flex justify-between items-center px-1">
-                            <h4 className="font-bold text-sm text-[var(--text-main)] flex items-center gap-2"><Repeat size={14} className="text-[var(--text-muted)]" /> {t.subscriptions}</h4>
-                            <button onClick={() => setIsEditingSubscriptions(!isEditingSubscriptions)} className="text-[10px] font-bold text-[var(--primary)] bg-[var(--bg-input)] px-2 py-1 rounded-md hover:bg-gray-200 transition-colors">
+                            <h4 className="font-semibold text-sm text-[var(--text-main)] flex items-center gap-2"><Repeat size={14} className="text-[var(--text-muted)]" /> {t.subscriptions}</h4>
+                            <button onClick={() => setIsEditingSubscriptions(!isEditingSubscriptions)} className="text-[10px] font-semibold text-[var(--primary)] bg-[var(--bg-input)] px-2 py-1 rounded-md hover:bg-gray-200 transition-colors">
                                 {isEditingSubscriptions ? t.save : t.manage}
                             </button>
                         </div>
@@ -388,7 +388,7 @@ export const Finance = () => {
                                     {subscriptions.map(s => (
                                         <div key={s.id} className="flex items-center justify-between bg-[var(--bg-input)] p-2 rounded-lg">
                                             <div className="flex flex-col">
-                                                <span className="text-xs font-bold text-[var(--text-main)]">{s.label} (Day {s.dayOfMonth})</span>
+                                                <span className="text-xs font-semibold text-[var(--text-main)]">{s.label} (Day {s.dayOfMonth})</span>
                                                 <span className="text-[10px] text-[var(--text-muted)]">{formatCurrency(s.amount)}</span>
                                             </div>
                                             <button onClick={() => deleteSubscription(s.id)} className="text-[var(--danger)] p-1 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
@@ -407,10 +407,10 @@ export const Finance = () => {
                                 {subscriptions.map(s => (
                                     <div key={s.id} className={`p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] flex flex-col ${new Date().getDate() === s.dayOfMonth ? 'border-[var(--warning)] ring-1 ring-[var(--warning)]' : ''}`}>
                                         <div className="flex justify-between items-start mb-2">
-                                            <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Day {s.dayOfMonth}</span>
+                                            <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase">Day {s.dayOfMonth}</span>
                                             {new Date().getDate() === s.dayOfMonth && <div className="w-2 h-2 rounded-full bg-[var(--warning)]"></div>}
                                         </div>
-                                        <span className="font-bold text-[13px] text-[var(--text-main)] truncate">{s.label}</span>
+                                        <span className="font-semibold text-sm text-[var(--text-main)] truncate">{s.label}</span>
                                         <div className="flex justify-between items-center mt-1">
                                             <span className="text-xs text-[var(--text-muted)]">{formatCurrency(s.amount)}</span>
                                             <button onClick={() => handleQuickActionClick(s)} className="p-1.5 bg-[var(--bg-input)] hover:bg-[var(--primary)] hover:text-white rounded-lg transition-colors"><Check size={12} /></button>
@@ -455,7 +455,7 @@ export const Finance = () => {
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
-                                    <p className="font-bold text-sm text-[var(--text-main)] whitespace-nowrap">-{formatCurrency(e.amount)}</p>
+                                    <p className="font-semibold text-sm text-[var(--text-main)] whitespace-nowrap">-{formatCurrency(e.amount)}</p>
                                     <div className="flex space-x-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                         <button onClick={() => { setEditingExpenseId(e.id); setNewExpense({ description: e.description, amount: e.amount.toString(), category: e.category }) }} className="text-[var(--text-muted)] hover:text-[var(--primary)]"><Pencil size={14} /></button>
                                         <button onClick={() => deleteExpense(e.id)} className="text-[var(--text-muted)] hover:text-[var(--danger)]"><Trash2 size={14} /></button>
@@ -499,7 +499,7 @@ export const Finance = () => {
                                                 <button
                                                     key={i}
                                                     onClick={() => setCurrentPage(i)}
-                                                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === i
+                                                    className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${currentPage === i
                                                         ? 'bg-[var(--primary)] text-white shadow-sm'
                                                         : 'bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-input)]'
                                                         }`}
@@ -540,8 +540,8 @@ export const Finance = () => {
             {financeSubTab === 'savings' && (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
                     <div className="flex justify-between items-center">
-                        <h4 className="font-bold text-lg text-[var(--text-main)]">{t.savingsGoals}</h4>
-                        <button onClick={() => setIsEditingSavings(!isEditingSavings)} className="text-xs font-bold text-[var(--text-main)] px-3 py-1.5 bg-[var(--bg-input)] rounded-lg hover:bg-gray-200 transition-colors">{isEditingSavings ? t.cancel : t.newGoal}</button>
+                        <h4 className="font-semibold text-lg text-[var(--text-main)]">{t.savingsGoals}</h4>
+                        <button onClick={() => setIsEditingSavings(!isEditingSavings)} className="text-xs font-semibold text-[var(--text-main)] px-3 py-1.5 bg-[var(--bg-input)] rounded-lg hover:bg-gray-200 transition-colors">{isEditingSavings ? t.cancel : t.newGoal}</button>
                     </div>
                     {isEditingSavings && (
                         <div className="apple-card p-5 bg-[var(--bg-body)] border-2 border-dashed border-[var(--border)] animate-in scale-in">
@@ -560,7 +560,7 @@ export const Finance = () => {
                                     <div className="flex justify-between items-start mb-4 relative z-10">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full bg-[var(--bg-input)] flex items-center justify-center text-[var(--text-main)]"><Trophy size={18} /></div>
-                                            <div><h5 className="font-bold text-[var(--text-main)]">{save.name}</h5><p className="text-xs font-medium text-[var(--text-muted)]">{formatCurrency(save.current)} of {formatCurrency(save.target)}</p></div>
+                                            <div><h5 className="font-semibold text-[var(--text-main)]">{save.name}</h5><p className="text-xs font-medium text-[var(--text-muted)]">{formatCurrency(save.current)} of {formatCurrency(save.target)}</p></div>
                                         </div>
                                         <button onClick={() => deleteSaving(save.id)} className="text-[var(--text-muted)] hover:text-[var(--danger)] opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16} /></button>
                                     </div>
@@ -568,9 +568,9 @@ export const Finance = () => {
                                         <div className="h-full bg-[var(--success)] transition-all duration-1000 ease-out rounded-full" style={{ width: `${percentage}%` }}></div>
                                     </div>
                                     <div className="flex gap-2 relative z-10">
-                                        <button onClick={() => updateSavingAmount(save.id, 50000)} className="flex-1 py-2 bg-[var(--bg-input)] text-[var(--text-main)] rounded-lg text-xs font-bold hover:bg-gray-200 transition-colors">+ 50k</button>
-                                        <button onClick={() => updateSavingAmount(save.id, 100000)} className="flex-1 py-2 bg-[var(--bg-input)] text-[var(--text-main)] rounded-lg text-xs font-bold hover:bg-gray-200 transition-colors">+ 100k</button>
-                                        <button onClick={() => { const amt = prompt('Amount:'); if (amt) updateSavingAmount(save.id, parseFloat(amt)); }} className="py-2 px-3 bg-[var(--text-main)] text-[var(--bg-card)] rounded-lg text-xs font-bold"><Plus size={14} /></button>
+                                        <button onClick={() => updateSavingAmount(save.id, 50000)} className="flex-1 py-2 bg-[var(--bg-input)] text-[var(--text-main)] rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors">+ 50k</button>
+                                        <button onClick={() => updateSavingAmount(save.id, 100000)} className="flex-1 py-2 bg-[var(--bg-input)] text-[var(--text-main)] rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors">+ 100k</button>
+                                        <button onClick={() => { const amt = prompt('Amount:'); if (amt) updateSavingAmount(save.id, parseFloat(amt)); }} className="py-2 px-3 bg-[var(--text-main)] text-[var(--bg-card)] rounded-lg text-xs font-semibold"><Plus size={14} /></button>
                                     </div>
                                 </div>
                             );
@@ -590,7 +590,7 @@ export const Finance = () => {
 
                         <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                                     {lang === 'id' ? 'Total Anggaran Bulanan' : 'Total Monthly Budget'}
                                 </label>
                                 <div className="relative">
@@ -604,14 +604,14 @@ export const Finance = () => {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                                <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                                     {lang === 'id' ? 'Tanggal Gajian / Awal Siklus' : 'Payday / Cycle Start Date'}
                                 </label>
                                 <div className="flex items-center gap-3 relative">
                                     <div className="relative">
                                         <button
                                             onClick={() => setIsCyclePickerOpen(!isCyclePickerOpen)}
-                                            className="flex items-center justify-center gap-2 w-24 bg-[var(--bg-input)] border border-[var(--border)] rounded-xl py-3 px-4 font-bold text-lg text-[var(--text-main)] hover:bg-[var(--border)] transition-all cursor-pointer"
+                                            className="flex items-center justify-center gap-2 w-24 bg-[var(--bg-input)] border border-[var(--border)] rounded-xl py-3 px-4 font-semibold text-lg text-[var(--text-main)] hover:bg-[var(--border)] transition-all cursor-pointer"
                                         >
                                             <Calendar size={18} className="text-[var(--primary)]" />
                                             {cycleStartDate}
@@ -629,7 +629,7 @@ export const Finance = () => {
                                                                     setCycleStartDate(day);
                                                                     setIsCyclePickerOpen(false);
                                                                 }}
-                                                                className={`w-7 h-7 flex items-center justify-center rounded-lg text-[10px] font-bold transition-all ${cycleStartDate === day
+                                                                className={`w-7 h-7 flex items-center justify-center rounded-lg text-[10px] font-semibold transition-all ${cycleStartDate === day
                                                                     ? 'bg-[var(--primary)] text-white shadow-md'
                                                                     : 'hover:bg-[var(--bg-input)] text-[var(--text-main)] active:scale-95'
                                                                     }`}
@@ -658,16 +658,16 @@ export const Finance = () => {
                                     {unallocatedBudget < 0 ? <X size={24} /> : <Check size={24} />}
                                 </div>
                                 <div>
-                                    <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                                    <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                                         {unallocatedBudget < 0 ? (lang === 'id' ? 'Anggaran Berlebih' : 'Over Budgeted') : (lang === 'id' ? 'Sisa Alokasi' : 'Unallocated')}
                                     </p>
-                                    <h4 className={`text-2xl font-black ${unallocatedBudget < 0 ? 'text-[var(--danger)]' : 'text-[var(--text-main)]'}`}>
+                                    <h4 className={`text-2xl font-extrabold ${unallocatedBudget < 0 ? 'text-[var(--danger)]' : 'text-[var(--text-main)]'}`}>
                                         {formatCurrency(Math.abs(unallocatedBudget))}
                                     </h4>
                                 </div>
                             </div>
                             <div className="w-full sm:w-64 space-y-2">
-                                <div className="flex justify-between text-[10px] font-bold uppercase text-[var(--text-muted)]">
+                                <div className="flex justify-between text-[10px] font-semibold uppercase text-[var(--text-muted)]">
                                     <span>{lang === 'id' ? 'Teralokasi' : 'Allocated'}</span>
                                     <span>{Math.min(Math.round((totalAllocated / totalMonthlyBudget) * 100), 100)}%</span>
                                 </div>
@@ -682,8 +682,8 @@ export const Finance = () => {
                     </div>
 
                     <div className="flex justify-between items-center px-1">
-                        <h4 className="font-bold text-sm text-[var(--text-main)] uppercase tracking-widest">{t.spendingBreakdown}</h4>
-                        <button onClick={() => setIsEditingBudget(!isEditingBudget)} className={`text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-sm ${isEditingBudget ? 'bg-[var(--success)] text-white' : 'bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--border)]'}`}>
+                        <h4 className="font-semibold text-sm text-[var(--text-main)] uppercase tracking-widest">{t.spendingBreakdown}</h4>
+                        <button onClick={() => setIsEditingBudget(!isEditingBudget)} className={`text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-sm ${isEditingBudget ? 'bg-[var(--success)] text-white' : 'bg-[var(--bg-input)] text-[var(--text-main)] hover:bg-[var(--border)]'}`}>
                             {isEditingBudget ? t.saved : t.setBudget}
                         </button>
                     </div>
@@ -704,21 +704,21 @@ export const Finance = () => {
                                             {getCategoryIcon(cat)}
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none">
+                                            <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-widest leading-none">
                                                 {t.categories[cat as keyof typeof t.categories]}
                                             </p>
                                             {isEditingBudget ? (
                                                 <div className="flex items-center gap-1 mt-1 border-b border-[var(--primary)]">
-                                                    <span className="text-sm font-bold opacity-50">{t.currency}</span>
+                                                    <span className="text-sm font-semibold opacity-50">{t.currency}</span>
                                                     <input
                                                         type="number"
-                                                        className="w-full bg-transparent font-black text-lg outline-none text-[var(--primary)] py-1"
+                                                        className="w-full bg-transparent font-bold text-lg outline-none text-[var(--primary)] py-1"
                                                         defaultValue={budgetAmount || ''}
                                                         onBlur={(e) => saveBudget(cat, parseFloat(e.target.value) || 0)}
                                                     />
                                                 </div>
                                             ) : (
-                                                <h5 className="font-bold text-[var(--text-main)] text-lg mt-0.5">
+                                                <h5 className="font-semibold text-[var(--text-main)] text-lg mt-0.5">
                                                     {formatCurrency(budgetAmount)}
                                                 </h5>
                                             )}
@@ -729,14 +729,14 @@ export const Finance = () => {
                                         <div className="space-y-3">
                                             <div className="flex justify-between items-end">
                                                 <div>
-                                                    <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase">{lang === 'id' ? 'Terpakai' : 'Spent'}</p>
-                                                    <p className={`text-sm font-bold ${isOver ? 'text-[var(--danger)]' : 'text-[var(--text-main)]'}`}>
+                                                    <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase">{lang === 'id' ? 'Terpakai' : 'Spent'}</p>
+                                                    <p className={`text-sm font-semibold ${isOver ? 'text-[var(--danger)]' : 'text-[var(--text-main)]'}`}>
                                                         {formatCurrency(spentAmount)}
                                                     </p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase">{lang === 'id' ? 'Sisa' : 'Remains'}</p>
-                                                    <p className={`text-sm font-bold ${budgetAmount - spentAmount < 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
+                                                    <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase">{lang === 'id' ? 'Sisa' : 'Remains'}</p>
+                                                    <p className={`text-sm font-semibold ${budgetAmount - spentAmount < 0 ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
                                                         {formatCurrency(Math.max(0, budgetAmount - spentAmount))}
                                                     </p>
                                                 </div>

@@ -1,4 +1,3 @@
-
 export const translations = {
     en: {
         overview: "Dashboard", wallet: "Wallet", habits: "Habits", journal: "Journal",
