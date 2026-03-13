@@ -159,12 +159,13 @@ export const useFinance = () => {
                 if (financeFilter === 'daily') return itemDateStr === selectedDate;
 
                 if (financeFilter === 'weekly') {
+                    const targetEnd = new Date(selectedDate);
+                    targetEnd.setHours(23, 59, 59, 999);
                     const targetStart = new Date(selectedDate);
                     targetStart.setHours(0, 0, 0, 0);
-                    const targetEnd = new Date(targetStart);
-                    targetEnd.setDate(targetEnd.getDate() + 7);
+                    targetStart.setDate(targetStart.getDate() - 6);
                     const itemDate = new Date(e.date);
-                    return itemDate >= targetStart && itemDate < targetEnd;
+                    return itemDate >= targetStart && itemDate <= targetEnd;
                 }
 
                 // Monthly with Cycle Support

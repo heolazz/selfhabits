@@ -220,7 +220,14 @@ export const Finance = () => {
                                 ? new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'long', year: 'numeric' })
                                 : (financeFilter === 'monthly'
                                     ? new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'long', year: 'numeric' })
-                                    : new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }))
+                                    : financeFilter === 'weekly'
+                                        ? (() => {
+                                            const end = new Date(selectedDate);
+                                            const start = new Date(selectedDate);
+                                            start.setDate(start.getDate() - 6);
+                                            return `${start.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                                        })()
+                                        : new Date(selectedDate).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }))
                             }
                         </span>
                         <button onClick={() => navigateDate('next')} className="p-2 hover:bg-[var(--bg-card)] rounded-lg text-[var(--text-muted)] transition-colors"><ChevronRight size={18} /></button>
