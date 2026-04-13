@@ -29,6 +29,7 @@ export const translations = {
         changeEmail: "Change Email", newEmail: "New Email Address", update: "Update",
         emailUpdateSent: "Confirmation link sent to your new email.",
         emailUpdateError: "Failed to update email. Please try again.",
+        confirmSignOut: "Are you sure you want to sign out?",
         categories: {
             Food: "Food", Transport: "Transport", Shopping: "Shopping",
             Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -47,6 +48,7 @@ export const translations = {
         changeEmail: "Ubah Email", newEmail: "Alamat Email Baru", update: "Perbarui",
         emailUpdateSent: "Link konfirmasi telah dikirim ke email baru Anda.",
         emailUpdateError: "Gagal memperbarui email. Silakan coba lagi.",
+        confirmSignOut: "Apakah Anda yakin ingin keluar?",
         placeholderJournal: "Apa yang ada di pikiranmu?",
         back: "Kembali", confirmDelete: "Hapus item ini permanen?", currency: "Rp",
         spendingBreakdown: "Analisis", topCategory: "Kategori Terbesar",

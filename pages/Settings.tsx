@@ -83,8 +83,10 @@ export const Settings = () => {
     }, []);
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
-        window.location.reload();
+        if (window.confirm(t.confirmSignOut)) {
+            await supabase.auth.signOut();
+            window.location.reload();
+        }
     };
 
     return (
