@@ -26,6 +26,9 @@ export const translations = {
         search: "Search transactions...", export: "Export CSV",
         viewMode: { list: "List View", calendar: "Calendar View" },
         habitProgress: "Today's Progress", consistency: "Consistency (30d)",
+        changeEmail: "Change Email", newEmail: "New Email Address", update: "Update",
+        emailUpdateSent: "Confirmation link sent to your new email.",
+        emailUpdateError: "Failed to update email. Please try again.",
         categories: {
             Food: "Food", Transport: "Transport", Shopping: "Shopping",
             Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
@@ -41,6 +44,9 @@ export const translations = {
         habitsTitle: "Kebiasaan Baru", untitled: "Tanpa Judul", newEntry: "Entri Baru",
         beginThoughts: "Mulai menulis...", saved: "Tersimpan",
         delete: "Hapus", signOut: "Keluar", language: "Bahasa",
+        changeEmail: "Ubah Email", newEmail: "Alamat Email Baru", update: "Perbarui",
+        emailUpdateSent: "Link konfirmasi telah dikirim ke email baru Anda.",
+        emailUpdateError: "Gagal memperbarui email. Silakan coba lagi.",
         placeholderJournal: "Apa yang ada di pikiranmu?",
         back: "Kembali", confirmDelete: "Hapus item ini permanen?", currency: "Rp",
         spendingBreakdown: "Analisis", topCategory: "Kategori Terbesar",

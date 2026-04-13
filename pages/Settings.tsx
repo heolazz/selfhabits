@@ -1,7 +1,7 @@
 
 import React from 'react';
 import {
-    Smartphone, Moon, Sun, LogOut, Download, Languages, ChevronRight
+    Smartphone, Moon, Sun, LogOut, Download, Languages, ChevronRight, Mail, Check, AlertCircle
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { translations } from '../constants/translations';
@@ -17,6 +17,28 @@ declare global {
 export const Settings = () => {
     const { lang, setLang, theme, setTheme, currentUser } = useApp();
     const t = translations[lang];
+
+    const [showEmailForm, setShowEmailForm] = React.useState(false);
+    const [newEmail, setNewEmail] = React.useState('');
+    const [status, setStatus] = React.useState<{ type: 'success' | 'error', msg: string } | null>(null);
+    const [loading, setLoading] = React.useState(false);
+
+    const handleUpdateEmail = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newEmail) return;
+        setLoading(true);
+        setStatus(null);
+        try {
+            const { error } = await supabase.auth.updateUser({ email: newEmail });
+            if (error) throw error;
+            setStatus({ type: 'success', msg: t.emailUpdateSent });
+            setNewEmail('');
+        } catch (err: any) {
+            setStatus({ type: 'error', msg: err.message || t.emailUpdateError });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleInstallPWA = () => {
         if (window.deferredPrompt) {
@@ -86,9 +108,9 @@ export const Settings = () => {
                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div className="flex items-center gap-5">
                             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-400/30 backdrop-blur-sm shrink-0">
-                                <item className="animate-bounce">
+                                <div className="animate-bounce">
                                     <Smartphone size={24} />
-                                </item>
+                                </div>
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold tracking-tight">Install App</h3>
@@ -109,6 +131,65 @@ export const Settings = () => {
 
             {/* Settings List Card */}
             <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border)] shadow-sm overflow-hidden divide-y divide-[var(--border)]">
+                {/* Email Item */}
+                <div className="flex flex-col">
+                    <div
+                        onClick={() => {
+                            setShowEmailForm(!showEmailForm);
+                            setStatus(null);
+                        }}
+                        className="p-6 md:px-8 flex items-center justify-between hover:bg-[var(--bg-input)] transition-colors group cursor-pointer"
+                    >
+                        <div className="flex items-center gap-5">
+                            <div className="w-12 h-12 rounded-xl bg-[var(--bg-input)] flex items-center justify-center text-[var(--text-main)] transition-colors group-hover:bg-[var(--bg-card)]">
+                                <Mail size={20} />
+                            </div>
+                            <div className="flex flex-col text-left">
+                                <span className="text-base font-bold text-[var(--text-main)] tracking-tight">{t.changeEmail}</span>
+                                <span className="text-xs font-medium text-zinc-500">{currentUser?.email}</span>
+                            </div>
+                        </div>
+                        <ChevronRight size={18} className={`text-zinc-400 transition-transform ${showEmailForm ? 'rotate-90' : ''}`} />
+                    </div>
+
+                    {showEmailForm && (
+                        <div className="px-6 md:px-8 pb-8 pt-2 animate-in slide-in-from-top-2 duration-300">
+                            <form onSubmit={handleUpdateEmail} className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest px-1">
+                                        {t.newEmail}
+                                    </label>
+                                    <input
+                                        type="email"
+                                        required
+                                        className="w-full bg-[var(--bg-input)] border border-[var(--border)] rounded-xl py-3 px-4 font-medium text-sm outline-none focus:border-[var(--primary)] text-[var(--text-main)] transition-all"
+                                        placeholder="new-email@example.com"
+                                        value={newEmail}
+                                        onChange={e => setNewEmail(e.target.value)}
+                                    />
+                                </div>
+
+                                {status && (
+                                    <div className={`flex items-center gap-3 p-4 rounded-xl text-xs font-semibold ${status.type === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                                        {status.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
+                                        {status.msg}
+                                    </div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    disabled={loading || !newEmail}
+                                    className="w-full py-3.5 rounded-xl bg-[var(--primary)] text-white font-bold text-sm shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 hover:opacity-90 flex items-center justify-center gap-2"
+                                >
+                                    {loading ? (
+                                        <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : t.update}
+                                </button>
+                            </form>
+                        </div>
+                    )}
+                </div>
+
                 {/* Language Item */}
                 <div className="p-6 md:px-8 flex items-center justify-between hover:bg-[var(--bg-input)] transition-colors group cursor-pointer relative overflow-hidden">
                     <div className="flex items-center gap-5">
