@@ -431,11 +431,11 @@ export const Finance = () => {
                     <div className={`apple-card p-6 transition-all duration-300 ${editingExpenseId ? 'ring-1 ring-[var(--text-main)]' : ''}`}>
                         <div className="flex flex-col gap-3">
                             <div className="flex flex-col sm:flex-row gap-3">
-                                <input className="w-full apple-input bg-[var(--bg-input)]" placeholder={t.desc} value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} />
-                                <input className="w-full sm:w-1/3 apple-input bg-[var(--bg-input)]" type="number" placeholder="0" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })} />
+                                <input className="w-full apple-input" placeholder={t.desc} value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })} />
+                                <input className="w-full sm:w-1/3 apple-input" type="number" placeholder="0" value={newExpense.amount} onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })} />
                             </div>
                             <div className="flex gap-3">
-                                <select className="flex-1 apple-input bg-[var(--bg-input)]" value={newExpense.category} onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
+                                <select className="flex-1 apple-input" value={newExpense.category} onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
                                 <button onClick={handleAddExpense} className={`apple-button px-6 flex items-center justify-center ${editingExpenseId ? 'bg-[var(--success)]' : 'bg-[var(--primary)]'}`}>{editingExpenseId ? <Check size={20} /> : <Plus size={20} />}</button>
                                 {editingExpenseId && <button onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', category: 'Others' }) }} className="apple-button bg-[var(--text-muted)] px-4 flex items-center justify-center"><X size={20} /></button>}
                             </div>
