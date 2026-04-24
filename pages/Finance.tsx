@@ -436,8 +436,8 @@ export const Finance = () => {
                             </div>
                             <div className="flex gap-3">
                                 <select className="flex-1 apple-input" value={newExpense.category} onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
-                                <button onClick={handleAddExpense} className={`apple-button px-6 flex items-center justify-center ${editingExpenseId ? 'bg-[var(--success)]' : 'bg-[var(--primary)]'}`}>{editingExpenseId ? <Check size={20} /> : <Plus size={20} />}</button>
-                                {editingExpenseId && <button onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', category: 'Others' }) }} className="apple-button bg-[var(--text-muted)] px-4 flex items-center justify-center"><X size={20} /></button>}
+                                <button onClick={handleAddExpense} className={`px-6 py-3 rounded-xl flex items-center justify-center transition-all active:scale-95 text-white ${editingExpenseId ? 'bg-[var(--success)] shadow-lg shadow-emerald-500/20' : 'bg-[var(--primary)] shadow-lg shadow-blue-500/20'}`}>{editingExpenseId ? <Check size={20} /> : <Plus size={20} />}</button>
+                                {editingExpenseId && <button onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', category: 'Others' }) }} className="px-4 py-3 rounded-xl bg-[var(--bg-input)] text-[var(--text-muted)] hover:bg-gray-200 transition-all flex items-center justify-center"><X size={20} /></button>}
                             </div>
                         </div>
                     </div>
