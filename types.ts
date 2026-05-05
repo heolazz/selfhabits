@@ -17,6 +17,25 @@ export interface Expense {
   amount: number;
   date: string;
   category: string;
+  event_id?: string | null;
+  created_at?: string;
+}
+
+export type EventIconType =
+  | 'plane' | 'mountain' | 'palmtree' | 'tent'
+  | 'graduation-cap' | 'gift' | 'music' | 'camera'
+  | 'utensils' | 'bus' | 'building' | 'heart'
+  | 'star' | 'flag' | 'map-pin' | 'briefcase';
+
+export interface FinanceEvent {
+  id: string;
+  user_id: string;
+  name: string;
+  icon: EventIconType;
+  budget: number | null;
+  start_date: string;
+  end_date: string | null;
+  status: 'active' | 'completed';
   created_at?: string;
 }
 

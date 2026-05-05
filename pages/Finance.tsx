@@ -5,19 +5,35 @@ import {
     PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip
 } from 'recharts';
 import {
-    List, Calendar, Search, FileDown, ArrowLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Wallet, Flashlight, Plus, Trash2, Repeat, Check, X, Pencil, Trophy
+    List, Calendar, Search, FileDown, ArrowLeft, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Wallet, Flashlight, Plus, Trash2, Repeat, Check, X, Pencil, Trophy,
+    Plane, Mountain, Palmtree, Tent, GraduationCap, Gift, Music, Camera, Utensils, Bus, Building, Star, Flag, MapPin, Briefcase, CalendarDays, CheckCircle2, CircleDot, Tag
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { translations, CHART_COLORS } from '../constants/translations';
 import { supabase } from '../services/supabaseClient';
 import confetti from 'canvas-confetti';
-import { QuickAction, Subscription } from '../types';
+import { QuickAction, Subscription, EventIconType } from '../types';
 import { toLocalDateStr } from '../utils/dateHelpers';
 import { useFinance } from '../hooks/useFinance';
+import { useEvents, EVENT_ICONS } from '../hooks/useEvents';
+
+const getEventIcon = (icon: EventIconType, size = 18) => {
+    const icons: Record<string, React.ReactNode> = {
+        'plane': <Plane size={size} />, 'mountain': <Mountain size={size} />,
+        'palmtree': <Palmtree size={size} />, 'tent': <Tent size={size} />,
+        'graduation-cap': <GraduationCap size={size} />, 'gift': <Gift size={size} />,
+        'music': <Music size={size} />, 'camera': <Camera size={size} />,
+        'utensils': <Utensils size={size} />, 'bus': <Bus size={size} />,
+        'building': <Building size={size} />, 'heart': <Heart size={size} />,
+        'star': <Star size={size} />, 'flag': <Flag size={size} />,
+        'map-pin': <MapPin size={size} />, 'briefcase': <Briefcase size={size} />,
+    };
+    return icons[icon] || <Tag size={size} />;
+};
 
 // Icons mapping helper
-import { Coffee, Car, ShoppingBag, CreditCard, Heart, Gamepad2, MoreHorizontal } from 'lucide-react';
-const getCategoryIcon = (cat: string) => { const icons: any = { Food: <Coffee size={18} />, Transport: <Car size={18} />, Shopping: <ShoppingBag size={18} />, Bills: <CreditCard size={18} />, Health: <Heart size={18} />, Entertainment: <Gamepad2 size={18} /> }; return icons[cat] || <MoreHorizontal size={18} />; };
+import { UtensilsCrossed, Car, ShoppingBag, CreditCard, Heart, Gamepad2, MoreHorizontal } from 'lucide-react';
+const getCategoryIcon = (cat: string) => { const icons: any = { Food: <UtensilsCrossed size={18} />, Transport: <Car size={18} />, Shopping: <ShoppingBag size={18} />, Bills: <CreditCard size={18} />, Health: <Heart size={18} />, Entertainment: <Gamepad2 size={18} /> }; return icons[cat] || <MoreHorizontal size={18} />; };
 
 
 export const Finance = () => {
@@ -69,8 +85,8 @@ export const Finance = () => {
 
     const [isCyclePickerOpen, setIsCyclePickerOpen] = useState(false);
 
-    const { expenses, savings, budgets, fetchData } = useApp();
-
+    const { expenses, savings, budgets, fetchData, events: appEvents } = useApp();
+    const evtHook = useEvents();
     const formatCurrency = (val: number) => { const safeVal = val || 0; return new Intl.NumberFormat(lang === 'id' ? 'id-ID' : 'en-US', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(safeVal).replace('IDR', 'Rp'); };
     const formatShortCurrency = (val: number) => {
         if (val >= 1000000) return (val / 1000000).toFixed(1) + 'm';
@@ -436,8 +452,12 @@ export const Finance = () => {
                             </div>
                             <div className="flex gap-3">
                                 <select className="flex-1 apple-input" value={newExpense.category} onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}>{Object.entries(t.categories).map(([k, v]) => <option key={k} value={k}>{v as string}</option>)}</select>
+                                <select className="flex-1 apple-input" value={newExpense.event_id} onChange={e => setNewExpense({ ...newExpense, event_id: e.target.value })}>
+                                    <option value="">{t.noEvent}</option>
+                                    {evtHook.activeEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
+                                </select>
                                 <button onClick={handleAddExpense} className={`px-6 py-3 rounded-xl flex items-center justify-center transition-all active:scale-95 text-white ${editingExpenseId ? 'bg-[var(--success)] shadow-lg shadow-emerald-500/20' : 'bg-[var(--primary)] shadow-lg shadow-blue-500/20'}`}>{editingExpenseId ? <Check size={20} /> : <Plus size={20} />}</button>
-                                {editingExpenseId && <button onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', category: 'Others' }) }} className="px-4 py-3 rounded-xl bg-[var(--bg-input)] text-[var(--text-muted)] hover:bg-gray-200 transition-all flex items-center justify-center"><X size={20} /></button>}
+                                {editingExpenseId && <button onClick={() => { setEditingExpenseId(null); setNewExpense({ description: '', amount: '', category: 'Others', event_id: '' }) }} className="px-4 py-3 rounded-xl bg-[var(--bg-input)] text-[var(--text-muted)] hover:bg-gray-200 transition-all flex items-center justify-center"><X size={20} /></button>}
                             </div>
                         </div>
                     </div>
@@ -449,7 +469,7 @@ export const Finance = () => {
                                     <div className="shrink-0 w-10 h-10 rounded-full bg-[var(--bg-input)] flex items-center justify-center text-[var(--text-main)]">{getCategoryIcon(e.category)}</div>
                                     <div className="min-w-0 flex-1">
                                         <p className="font-semibold text-sm text-[var(--text-main)] truncate pr-2">{e.description}</p>
-                                        <div className="flex items-center gap-2 mt-0.5">
+                                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                             <p className="text-[11px] text-[var(--text-muted)] font-medium">{t.categories[e.category as keyof typeof t.categories]}</p>
                                             <span className="text-[10px] text-[var(--text-muted)] opacity-50">•</span>
                                             <p className="text-[10px] text-[var(--text-muted)] font-medium">
@@ -458,13 +478,14 @@ export const Finance = () => {
                                                     {new Date(e.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </p>
+                                            {e.event_id && (() => { const ev = appEvents.find(x => x.id === e.event_id); return ev ? (<><span className="text-[10px] text-[var(--text-muted)] opacity-50">•</span><span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 px-1.5 py-0.5 rounded-md">{getEventIcon(ev.icon, 10)} {ev.name}</span></>) : null; })()}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
                                     <p className="font-semibold text-sm text-[var(--text-main)] whitespace-nowrap">-{formatCurrency(e.amount)}</p>
                                     <div className="flex space-x-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => { setEditingExpenseId(e.id); setNewExpense({ description: e.description, amount: e.amount.toString(), category: e.category }) }} className="text-[var(--text-muted)] hover:text-[var(--primary)]"><Pencil size={14} /></button>
+                                        <button onClick={() => { setEditingExpenseId(e.id); setNewExpense({ description: e.description, amount: e.amount.toString(), category: e.category, event_id: e.event_id || '' }) }} className="text-[var(--text-muted)] hover:text-[var(--primary)]"><Pencil size={14} /></button>
                                         <button onClick={() => deleteExpense(e.id)} className="text-[var(--text-muted)] hover:text-[var(--danger)]"><Trash2 size={14} /></button>
                                     </div>
                                 </div>
@@ -759,6 +780,232 @@ export const Finance = () => {
                                 </div>
                             );
                         })}
+                    </div>
+
+                    {/* ── EVENT / KEGIATAN ── */}
+                    <div className="space-y-4 mt-8 pt-8 border-t border-[var(--border)]">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 px-1">
+                            <h4 className="font-semibold text-sm text-[var(--text-main)] uppercase tracking-widest flex items-center gap-2">
+                                <CalendarDays size={16} className="text-[var(--primary)]" />
+                                {t.events}
+                            </h4>
+                            <div className="flex items-center gap-2">
+                                <div className="flex bg-[var(--bg-input)] p-0.5 rounded-lg">
+                                    {(['active', 'completed', 'all'] as const).map(f => (
+                                        <button key={f} onClick={() => evtHook.setEventFilter(f)}
+                                            className={`px-3 py-1 text-[10px] font-semibold rounded-md transition-all ${evtHook.eventFilter === f ? 'bg-[var(--bg-card)] text-[var(--text-main)] shadow-sm' : 'text-[var(--text-muted)]'}`}>
+                                            {f === 'active' ? t.activeEvents : f === 'completed' ? t.completedEvents : t.allEvents}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button onClick={() => { evtHook.cancelEditEvent(); evtHook.setIsCreatingEvent(!evtHook.isCreatingEvent); }}
+                                    className="text-xs font-semibold text-white bg-[var(--primary)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-all flex items-center gap-1">
+                                    <Plus size={14} /> {t.newEvent}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Create/Edit Event Form */}
+                        {evtHook.isCreatingEvent && (
+                            <div className="apple-card p-5 border-2 border-dashed border-[var(--primary)] bg-[var(--primary)]/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="space-y-4">
+                                    <input className="w-full apple-input" placeholder={t.eventName} value={evtHook.newEvent.name}
+                                        onChange={e => evtHook.setNewEvent({ ...evtHook.newEvent, name: e.target.value })} />
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">{t.eventBudget}</label>
+                                            <input className="w-full apple-input" type="number" placeholder="0" value={evtHook.newEvent.budget}
+                                                onChange={e => evtHook.setNewEvent({ ...evtHook.newEvent, budget: e.target.value })} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">{t.eventStartDate}</label>
+                                            <input type="date" className="w-full apple-input" value={evtHook.newEvent.start_date}
+                                                onChange={e => evtHook.setNewEvent({ ...evtHook.newEvent, start_date: e.target.value })} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1 block">{t.eventEndDate}</label>
+                                            <input type="date" className="w-full apple-input" value={evtHook.newEvent.end_date}
+                                                onChange={e => evtHook.setNewEvent({ ...evtHook.newEvent, end_date: e.target.value })} />
+                                        </div>
+                                    </div>
+                                    {/* Icon Picker */}
+                                    <div>
+                                        <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2 block">{t.eventIcon}</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {EVENT_ICONS.map(ic => (
+                                                <button key={ic.key} onClick={() => evtHook.setNewEvent({ ...evtHook.newEvent, icon: ic.key })}
+                                                    className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${evtHook.newEvent.icon === ic.key
+                                                        ? 'bg-[var(--primary)] text-white shadow-md scale-110' : 'bg-[var(--bg-input)] text-[var(--text-muted)] hover:bg-[var(--border)]'}`}
+                                                    title={ic.label}>
+                                                    {getEventIcon(ic.key, 16)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 pt-2">
+                                        <button onClick={evtHook.handleAddEvent}
+                                            className={`flex-1 py-2.5 rounded-xl text-white font-semibold text-sm transition-all active:scale-95 ${evtHook.editingEventId ? 'bg-[var(--success)]' : 'bg-[var(--primary)]'}`}>
+                                            {evtHook.editingEventId ? (lang === 'id' ? 'Perbarui Event' : 'Update Event') : (lang === 'id' ? 'Buat Event' : 'Create Event')}
+                                        </button>
+                                        <button onClick={evtHook.cancelEditEvent}
+                                            className="px-4 py-2.5 rounded-xl bg-[var(--bg-input)] text-[var(--text-muted)] font-semibold text-sm hover:bg-[var(--border)] transition-all">
+                                            {t.cancel}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Event Detail View */}
+                        {evtHook.selectedEvent ? (
+                            <div className="apple-card p-6 animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-5">
+                                <div className="flex items-center justify-between">
+                                    <button onClick={() => evtHook.setSelectedEventId(null)}
+                                        className="flex items-center gap-1 text-xs font-semibold text-[var(--primary)] hover:underline">
+                                        <ArrowLeft size={14} /> {t.back}
+                                    </button>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => evtHook.startEditEvent(evtHook.selectedEvent!)}
+                                            className="p-2 rounded-lg bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Pencil size={14} /></button>
+                                        <button onClick={() => evtHook.toggleEventComplete(evtHook.selectedEvent!.id)}
+                                            className={`p-2 rounded-lg transition-colors ${evtHook.selectedEvent.status === 'active' ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--bg-input)] text-[var(--text-muted)]'}`}>
+                                            <CheckCircle2 size={14} /></button>
+                                        <button onClick={() => evtHook.deleteEvent(evtHook.selectedEvent!.id)}
+                                            className="p-2 rounded-lg bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"><Trash2 size={14} /></button>
+                                    </div>
+                                </div>
+                                {/* Header */}
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
+                                        {getEventIcon(evtHook.selectedEvent.icon, 24)}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-[var(--text-main)]">{evtHook.selectedEvent.name}</h3>
+                                        <p className="text-xs text-[var(--text-muted)] font-medium">
+                                            {new Date(evtHook.selectedEvent.start_date).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                            {evtHook.selectedEvent.end_date && ` — ${new Date(evtHook.selectedEvent.end_date).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}`}
+                                        </p>
+                                    </div>
+                                </div>
+                                {/* Stats */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="bg-[var(--bg-input)] rounded-xl p-3 text-center">
+                                        <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase">{t.totalSpent}</p>
+                                        <p className="text-base sm:text-lg font-bold text-[var(--text-main)]">{formatCurrency(evtHook.selectedEventTotal)}</p>
+                                    </div>
+                                    <div className="bg-[var(--bg-input)] rounded-xl p-3 text-center">
+                                        <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase">{t.budgeting}</p>
+                                        <p className="text-base sm:text-lg font-bold text-[var(--text-main)]">{evtHook.selectedEvent.budget ? formatCurrency(evtHook.selectedEvent.budget) : '—'}</p>
+                                    </div>
+                                    <div className="bg-[var(--bg-input)] rounded-xl p-3 text-center">
+                                        <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase">{t.budgetRemaining}</p>
+                                        <p className={`text-base sm:text-lg font-bold ${evtHook.selectedEvent.budget && evtHook.selectedEventTotal > evtHook.selectedEvent.budget ? 'text-[var(--danger)]' : 'text-[var(--success)]'}`}>
+                                            {evtHook.selectedEvent.budget ? formatCurrency(Math.max(0, evtHook.selectedEvent.budget - evtHook.selectedEventTotal)) : '—'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {/* Progress */}
+                                {evtHook.selectedEvent.budget && evtHook.selectedEvent.budget > 0 && (
+                                    <div className="w-full h-2 bg-[var(--bg-input)] rounded-full overflow-hidden">
+                                        <div className={`h-full rounded-full transition-all duration-700 ${evtHook.selectedEventTotal > evtHook.selectedEvent.budget ? 'bg-[var(--danger)]' : 'bg-[var(--primary)]'}`}
+                                            style={{ width: `${Math.min((evtHook.selectedEventTotal / evtHook.selectedEvent.budget) * 100, 100)}%` }} />
+                                    </div>
+                                )}
+                                {/* Breakdown */}
+                                {evtHook.selectedEventBreakdown.length > 0 && (
+                                    <div className="space-y-2">
+                                        <h5 className="text-xs font-semibold text-[var(--text-muted)] uppercase">{t.spendingBreakdown}</h5>
+                                        {evtHook.selectedEventBreakdown.map(b => (
+                                            <div key={b.category} className="flex items-center justify-between text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-[var(--bg-input)] flex items-center justify-center">{getCategoryIcon(b.category)}</div>
+                                                    <span className="font-medium text-[var(--text-main)] text-xs">{t.categories[b.category as keyof typeof t.categories] || b.category}</span>
+                                                </div>
+                                                <span className="font-semibold text-xs text-[var(--text-main)]">{formatCurrency(b.amount)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {/* Expense List */}
+                                <div className="space-y-2">
+                                    <h5 className="text-xs font-semibold text-[var(--text-muted)] uppercase">{lang === 'id' ? 'Daftar Pengeluaran' : 'Expenses'}</h5>
+                                    {evtHook.selectedEventExpenses.length === 0 && (
+                                        <p className="text-center py-6 text-[var(--text-muted)] text-xs">{lang === 'id' ? 'Belum ada pengeluaran di event ini.' : 'No expenses in this event yet.'}</p>
+                                    )}
+                                    {evtHook.selectedEventExpenses.map(exp => (
+                                        <div key={exp.id} className="flex items-center justify-between p-3 bg-[var(--bg-input)] rounded-xl">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-[var(--bg-card)] flex items-center justify-center text-[var(--text-main)]">{getCategoryIcon(exp.category)}</div>
+                                                <div>
+                                                    <p className="text-xs font-semibold text-[var(--text-main)]">{exp.description}</p>
+                                                    <p className="text-[10px] text-[var(--text-muted)]">
+                                                        {new Date(exp.date).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs font-semibold text-[var(--text-main)]">-{formatCurrency(exp.amount)}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            /* Event Cards Grid */
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {evtHook.filteredEvents.length === 0 && (
+                                    <div className="col-span-full text-center py-10 text-[var(--text-muted)] text-sm font-medium">{t.noEvents}</div>
+                                )}
+                                {evtHook.filteredEvents.map(ev => {
+                                    const total = evtHook.getEventTotal(ev.id);
+                                    const breakdown = evtHook.getEventBreakdown(ev.id);
+                                    const pct = ev.budget && ev.budget > 0 ? Math.min((total / ev.budget) * 100, 100) : 0;
+                                    const isOver = ev.budget ? total > ev.budget : false;
+                                    return (
+                                        <div key={ev.id} onClick={() => evtHook.setSelectedEventId(ev.id)}
+                                            className="apple-card p-5 cursor-pointer hover:shadow-lg hover:scale-[1.01] transition-all group relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 w-24 h-24 bg-[var(--primary)] opacity-[0.03] rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none group-hover:opacity-[0.08] transition-opacity" />
+                                            <div className="flex items-start justify-between mb-3 relative z-10">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${ev.status === 'completed' ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--primary)]/10 text-[var(--primary)]'}`}>
+                                                        {getEventIcon(ev.icon, 20)}
+                                                    </div>
+                                                    <div>
+                                                        <h5 className="font-semibold text-sm text-[var(--text-main)]">{ev.name}</h5>
+                                                        <p className="text-[10px] text-[var(--text-muted)] font-medium">
+                                                            {new Date(ev.start_date).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })}
+                                                            {ev.end_date && ` - ${new Date(ev.end_date).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })}`}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${ev.status === 'active' ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--text-muted)]/10 text-[var(--text-muted)]'}`}>
+                                                    <CircleDot size={8} /> {ev.status === 'active' ? t.activeEvents : t.completedEvents}
+                                                </span>
+                                            </div>
+                                            <div className="relative z-10">
+                                                <div className="flex items-baseline gap-2 mb-2">
+                                                    <span className="text-lg font-bold text-[var(--text-main)]">{formatCurrency(total)}</span>
+                                                    {ev.budget && <span className="text-xs text-[var(--text-muted)] font-medium">/ {formatCurrency(ev.budget)}</span>}
+                                                </div>
+                                                {ev.budget && ev.budget > 0 && (
+                                                    <div className="w-full h-1.5 bg-[var(--bg-input)] rounded-full overflow-hidden mb-3">
+                                                        <div className={`h-full rounded-full transition-all duration-700 ${isOver ? 'bg-[var(--danger)]' : 'bg-[var(--primary)]'}`}
+                                                            style={{ width: `${pct}%` }} />
+                                                    </div>
+                                                )}
+                                                {breakdown.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {breakdown.slice(0, 4).map(b => (
+                                                            <span key={b.category} className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)] font-medium bg-[var(--bg-input)] px-2 py-0.5 rounded-md">
+                                                                {getCategoryIcon(b.category)} {formatShortCurrency(b.amount)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

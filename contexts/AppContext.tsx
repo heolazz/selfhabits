@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { Expense, Habit, Note, Budget, Saving, Theme, Language, User } from '../types';
+import { Expense, Habit, Note, Budget, Saving, Theme, Language, User, FinanceEvent } from '../types';
 
 interface UserSettings {
     id?: string;
@@ -27,6 +27,8 @@ interface AppContextType {
     setBudgets: React.Dispatch<React.SetStateAction<Budget[]>>;
     savings: Saving[];
     setSavings: React.Dispatch<React.SetStateAction<Saving[]>>;
+    events: FinanceEvent[];
+    setEvents: React.Dispatch<React.SetStateAction<FinanceEvent[]>>;
     userSettings: UserSettings;
     setUserSettings: React.Dispatch<React.SetStateAction<UserSettings>>;
     fetchData: () => Promise<void>;
@@ -48,6 +50,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [notes, setNotes] = useState<Note[]>([]);
     const [budgets, setBudgets] = useState<Budget[]>([]);
     const [savings, setSavings] = useState<Saving[]>([]);
+    const [events, setEvents] = useState<FinanceEvent[]>([]);
     const [userSettings, setUserSettings] = useState<UserSettings>({
         total_monthly_budget: 0,
         cycle_start_date: 1
@@ -77,6 +80,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 if (data.notes) setNotes(data.notes);
                 if (data.budgets) setBudgets(data.budgets);
                 if (data.savings) setSavings(data.savings);
+                if (data.events) setEvents(data.events);
                 if (data.userSettings) setUserSettings(data.userSettings);
             } catch (e) {
                 console.error('Failed to load cached data', e);
@@ -107,16 +111,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const fetchData = async () => {
         if (!currentUser) return;
-        const [exp, hab, not, bud, sav, settings] = await Promise.all([
+        const [exp, hab, not, bud, sav, evt, settings] = await Promise.all([
             supabase.from('expenses').select('*').order('date', { ascending: false }),
             supabase.from('habits').select('*').order('created_at', { ascending: false }),
             supabase.from('notes').select('*').order('updated_at', { ascending: false }),
             supabase.from('budgets').select('*'),
             supabase.from('savings').select('*').order('created_at', { ascending: true }),
+            supabase.from('events').select('*').order('created_at', { ascending: false }),
             supabase.from('user_settings').select('*').eq('user_id', currentUser.id).single()
         ]);
 
-        if (exp.error || hab.error || not.error || bud.error || sav.error) {
+        if (exp.error || hab.error || not.error || bud.error || sav.error || evt.error) {
             console.warn('Network error, serving cached data if available.');
             setIsOffline(true);
             return;
@@ -127,6 +132,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (not.data) setNotes(not.data);
         if (bud.data) setBudgets(bud.data);
         if (sav.data) setSavings(sav.data);
+        if (evt.data) setEvents(evt.data);
         if (settings.data) setUserSettings(settings.data);
 
         // Cache successful fetch
@@ -136,6 +142,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             notes: not.data || notes,
             budgets: bud.data || budgets,
             savings: sav.data || savings,
+            events: evt.data || events,
             userSettings: settings.data || userSettings
         }));
     };
@@ -147,6 +154,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setNotes([]);
         setBudgets([]);
         setSavings([]);
+        setEvents([]);
     };
 
     return (
@@ -159,6 +167,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             notes, setNotes,
             budgets, setBudgets,
             savings, setSavings,
+            events, setEvents,
             userSettings, setUserSettings,
             fetchData, handleLogout, isOffline
         }}>

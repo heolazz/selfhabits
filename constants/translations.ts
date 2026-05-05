@@ -31,9 +31,26 @@ export const translations = {
         emailUpdateError: "Failed to update email. Please try again.",
         confirmSignOut: "Are you sure you want to sign out?",
         categories: {
-            Food: "Food", Transport: "Transport", Shopping: "Shopping",
+            Food: "Food & Drink", Transport: "Transport", Shopping: "Shopping",
             Bills: "Bills", Health: "Health", Entertainment: "Entertainment", Others: "Others"
-        }
+        },
+        events: "Events",
+        eventName: "Event Name",
+        eventBudget: "Budget (optional)",
+        eventStartDate: "Start Date",
+        eventEndDate: "End Date (optional)",
+        newEvent: "New Event",
+        activeEvents: "Active",
+        completedEvents: "Completed",
+        allEvents: "All",
+        noEvents: "No events yet. Create one to start tracking!",
+        completeEvent: "Complete Event",
+        eventDetail: "Event Detail",
+        selectEvent: "Select Event",
+        noEvent: "No Event",
+        eventIcon: "Icon",
+        totalSpent: "Total Spent",
+        budgetRemaining: "Remaining"
     },
     id: {
         overview: "Dashboard", wallet: "Dompet", habits: "Kebiasaan", journal: "Jurnal",
@@ -67,9 +84,26 @@ export const translations = {
         viewMode: { list: "Tampilan List", calendar: "Kalender" },
         habitProgress: "Progres Hari Ini", consistency: "Konsistensi (30h)",
         categories: {
-            Food: "Makanan", Transport: "Transportasi", Shopping: "Belanja",
+            Food: "Makanan & Minuman", Transport: "Transportasi", Shopping: "Belanja",
             Bills: "Tagihan", Health: "Kesehatan", Entertainment: "Hiburan", Others: "Lainnya"
-        }
+        },
+        events: "Event",
+        eventName: "Nama Event",
+        eventBudget: "Anggaran (opsional)",
+        eventStartDate: "Tanggal Mulai",
+        eventEndDate: "Tanggal Selesai (opsional)",
+        newEvent: "Event Baru",
+        activeEvents: "Aktif",
+        completedEvents: "Selesai",
+        allEvents: "Semua",
+        noEvents: "Belum ada event. Buat event untuk mulai tracking!",
+        completeEvent: "Selesaikan Event",
+        eventDetail: "Detail Event",
+        selectEvent: "Pilih Event",
+        noEvent: "Tanpa Event",
+        eventIcon: "Ikon",
+        totalSpent: "Total Terpakai",
+        budgetRemaining: "Sisa"
     }
 };
 

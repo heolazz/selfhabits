@@ -37,7 +37,7 @@ export const useFinance = () => {
         return new Date(Date.now() - offset).toISOString().split('T')[0];
     });
 
-    const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Others' });
+    const [newExpense, setNewExpense] = useState({ description: '', amount: '', category: 'Others', event_id: '' });
     const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
     // --- BUDGET LOGIC (SYNCED WITH SUPABASE user_settings) ---
@@ -237,11 +237,11 @@ export const useFinance = () => {
         if (newExpense.description && newExpense.amount) {
             if (editingExpenseId) {
                 if (isOffline) {
-                    const updated = expenses.map(e => e.id === editingExpenseId ? { ...e, description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, updated_at: new Date().toISOString() } : e);
+                    const updated = expenses.map(e => e.id === editingExpenseId ? { ...e, description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, event_id: newExpense.event_id || null, updated_at: new Date().toISOString() } : e);
                     setExpenses(updated);
-                    addToQueue({ table: 'expenses', type: 'UPDATE', payload: { description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, updated_at: new Date().toISOString() }, matchField: 'id', matchValue: editingExpenseId });
+                    addToQueue({ table: 'expenses', type: 'UPDATE', payload: { description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, event_id: newExpense.event_id || null, updated_at: new Date().toISOString() }, matchField: 'id', matchValue: editingExpenseId });
                     setEditingExpenseId(null);
-                    setNewExpense({ description: '', amount: '', category: 'Others' });
+                    setNewExpense({ description: '', amount: '', category: 'Others', event_id: '' });
                     showToast(lang === 'id' ? 'Pengeluaran diperbarui (Offline)' : 'Expense updated (Offline)', 'update');
                     return;
                 }
@@ -250,23 +250,24 @@ export const useFinance = () => {
                     description: newExpense.description,
                     amount: parseFloat(newExpense.amount),
                     category: newExpense.category,
+                    event_id: newExpense.event_id || null,
                     updated_at: new Date().toISOString()
                 }).eq('id', editingExpenseId).select();
                 if (data) {
                     setExpenses(expenses.map(e => e.id === editingExpenseId ? data[0] : e));
                     setEditingExpenseId(null);
-                    setNewExpense({ description: '', amount: '', category: 'Others' });
+                    setNewExpense({ description: '', amount: '', category: 'Others', event_id: '' });
                     showToast(lang === 'id' ? 'Pengeluaran diperbarui' : 'Expense updated', 'update');
                 }
             } else {
                 if (isOffline) {
                     const tempId = generateTempId();
-                    const newExp: any = { id: tempId, user_id: currentUser.id, description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, date: new Date().toISOString() };
+                    const newExp: any = { id: tempId, user_id: currentUser.id, description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, event_id: newExpense.event_id || null, date: new Date().toISOString() };
                     setExpenses([newExp, ...expenses]);
 
-                    addToQueue({ table: 'expenses', type: 'INSERT', payload: { description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, user_id: currentUser.id, date: new Date().toISOString() }, matchValue: tempId });
+                    addToQueue({ table: 'expenses', type: 'INSERT', payload: { description: newExpense.description, amount: parseFloat(newExpense.amount), category: newExpense.category, event_id: newExpense.event_id || null, user_id: currentUser.id, date: new Date().toISOString() }, matchValue: tempId });
 
-                    setNewExpense({ description: '', amount: '', category: 'Others' });
+                    setNewExpense({ description: '', amount: '', category: 'Others', event_id: '' });
                     showToast(lang === 'id' ? 'Pengeluaran ditambahkan (Offline)' : 'Expense added (Offline)', 'success');
                     return;
                 }
@@ -275,12 +276,13 @@ export const useFinance = () => {
                     description: newExpense.description,
                     amount: parseFloat(newExpense.amount),
                     category: newExpense.category,
+                    event_id: newExpense.event_id || null,
                     user_id: currentUser.id,
                     date: new Date().toISOString()
                 }]).select();
                 if (data) {
                     setExpenses([data[0], ...expenses]);
-                    setNewExpense({ description: '', amount: '', category: 'Others' });
+                    setNewExpense({ description: '', amount: '', category: 'Others', event_id: '' });
                     showToast(lang === 'id' ? 'Pengeluaran ditambahkan' : 'Expense added', 'success');
                 }
             }
