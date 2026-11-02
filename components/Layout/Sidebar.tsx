@@ -28,8 +28,9 @@ export const Sidebar = () => {
 
     return (
         <aside className="hidden md:flex w-[260px] bg-[var(--bg-sidebar)] border-r border-[var(--border)] fixed h-full flex-col p-6 z-50">
-            <div className="mb-10 px-2 mt-4">
-                <h1 className="text-3xl font-extrabold tracking-tighter text-[var(--text-main)]">Zenith<span className="text-[var(--primary)]">.</span></h1>
+            <div className="mb-10 px-2 mt-4 flex items-center space-x-3">
+                <img src="/logo-tasho.png" alt="Tasho Logo" className="w-9 h-9 rounded-xl shadow-sm object-cover" />
+                <h1 className="text-2xl font-bold font-brand tracking-normal text-[var(--text-main)]">Tasho<span className="text-[var(--primary)]">.</span></h1>
             </div>
             <nav className="space-y-1.5 flex-1">
                 {menuItems.map(item => (

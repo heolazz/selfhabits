@@ -28,8 +28,9 @@ const AppRoutes = () => {
 
   if (loading) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[var(--bg-body)] text-[var(--text-muted)] font-medium">
-        <div className="animate-pulse">Loading Zenith...</div>
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-body)] text-[var(--text-muted)] font-medium space-y-3">
+        <img src="/logo-tasho.png" alt="Tasho Logo" className="w-16 h-16 rounded-2xl shadow-lg animate-pulse object-cover" />
+        <div className="text-sm font-semibold text-[var(--text-main)] animate-pulse">Loading Tasho...</div>
       </div>
     );
   }

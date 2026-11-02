@@ -35,7 +35,7 @@ export const Habits = () => {
                     />
                     <button
                         onClick={handleAddHabit}
-                        className="apple-button px-6 bg-[var(--primary)] hover:bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                        className="px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center shadow-md shadow-blue-500/20 active:scale-95 transition-all"
                     >
                         <Plus size={20} />
                     </button>

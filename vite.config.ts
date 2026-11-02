@@ -7,10 +7,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo.png'],
+      includeAssets: ['logo.png', 'logo-tasho.png'],
       manifest: {
-        name: 'Zenith Personal Organizer',
-        short_name: 'Zenith',
+        name: 'Tasho Personal Organizer',
+        short_name: 'Tasho',
         description: 'Organizational tool for daily life',
         theme_color: '#ffffff',
         background_color: '#ffffff',
@@ -18,13 +18,13 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'logo.png',
+            src: 'logo-tasho.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: 'logo.png',
+            src: 'logo-tasho.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'

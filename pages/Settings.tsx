@@ -245,7 +245,7 @@ export const Settings = () => {
             </div>
 
             <p className="text-center text-[10px] text-zinc-400 font-bold tracking-widest uppercase mt-4 opacity-40">
-                Zenith v1.2.0 • Build 2026
+                Tasho v1.2.0 • Build 2026
             </p>
         </div>
     );

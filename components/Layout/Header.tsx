@@ -24,7 +24,7 @@ export const Header = () => {
         if (p.startsWith('/habits')) return t.habits;
         if (p.startsWith('/journal')) return t.journal;
         if (p.startsWith('/settings')) return t.account;
-        return 'Zenith';
+        return 'Tasho';
     };
 
     return (

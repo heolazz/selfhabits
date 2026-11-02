@@ -1,6 +1,6 @@
-# Zenith Self Organizer
+# Tasho Self Organizer
 
-**Zenith** is an all-in-one **Personal Life Organizer** built as a Progressive Web App (PWA). It helps you manage finances, build positive habits, and journal your life journey in a modern, aesthetic interface designed for both Mobile and Desktop.
+**Tasho** is an all-in-one **Personal Life Organizer** built as a Progressive Web App (PWA). It helps you manage finances, build positive habits, and journal your life journey in a modern, aesthetic interface designed for both Mobile and Desktop.
 
 <img width="1920" height="900" alt="image" src="https://github.com/user-attachments/assets/dcc9c85a-2748-4e23-948c-76ddbd42d17d" />
 <img width="1920" height="976" alt="screencapture-selfhabits-vercel-app-2026-01-06-15_12_22" src="https://github.com/user-attachments/assets/cc32d7c3-3f5f-4209-9eec-bf79ae6e5235" />

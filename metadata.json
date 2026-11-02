@@ -1,6 +1,6 @@
 
 {
-  "name": "Zenith - Personal Organizer",
+  "name": "Tasho - Personal Organizer",
   "description": "A minimalist, Apple-inspired suite for tracking daily expenses, notes, and habits.",
   "requestFramePermissions": [
     "camera",
