@@ -12,8 +12,8 @@ export default defineConfig({
         name: 'Tasho Personal Organizer',
         short_name: 'Tasho',
         description: 'Organizational tool for daily life',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
+        theme_color: '#175DFD',
+        background_color: '#175DFD',
         display: 'standalone',
         start_url: '/',
         icons: [

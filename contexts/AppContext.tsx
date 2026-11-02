@@ -92,6 +92,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         localStorage.setItem('zenith_lang', lang);
         localStorage.setItem('zenith_theme', theme);
         document.documentElement.className = theme;
+        const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+            metaThemeColor.setAttribute('content', theme === 'dark' ? '#09090b' : '#ffffff');
+        }
     }, [lang, theme]);
 
     useEffect(() => {

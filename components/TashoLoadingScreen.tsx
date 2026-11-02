@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 
 interface TashoLoadingScreenProps {
@@ -8,6 +8,19 @@ interface TashoLoadingScreenProps {
 
 export const TashoLoadingScreen: React.FC<TashoLoadingScreenProps> = () => {
   const blueBg = "#175DFD"; // Warna biru persis dari sampel gambar asli
+
+  useEffect(() => {
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', blueBg);
+    }
+    return () => {
+      if (metaThemeColor) {
+        const isDark = document.documentElement.classList.contains('dark');
+        metaThemeColor.setAttribute('content', isDark ? '#09090b' : '#ffffff');
+      }
+    };
+  }, []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
