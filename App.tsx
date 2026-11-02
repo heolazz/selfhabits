@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp } from './contexts/AppContext';
 import { AppLayout } from './components/Layout/AppLayout';
 import { Auth } from './pages/Auth';
@@ -10,14 +11,24 @@ import { Habits } from './pages/Habits';
 import { Journal } from './pages/Journal';
 import { Settings } from './pages/Settings';
 import { ToastProvider } from './components/Toast';
+import { TashoLoadingScreen } from './components/TashoLoadingScreen';
 import { useSync } from './hooks/useSync';
 import './index.css';
 
 const AppRoutes = () => {
-  const { currentUser, loading } = useApp();
+  const { currentUser, authLoading } = useApp();
+  const [minSplashElapsed, setMinSplashElapsed] = useState(false);
   useSync(true); // Enable Global Sync
 
-  React.useEffect(() => {
+  useEffect(() => {
+    // Memberikan waktu agar animasi logo Tasho dapat dinikmati saat masuk aplikasi
+    const timer = setTimeout(() => {
+      setMinSplashElapsed(true);
+    }, 1600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
       window.deferredPrompt = e;
@@ -26,31 +37,32 @@ const AppRoutes = () => {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-body)] text-[var(--text-muted)] font-medium space-y-3">
-        <img src="/logo-tasho.png" alt="Tasho Logo" className="w-16 h-16 rounded-2xl shadow-lg animate-pulse object-cover" />
-        <div className="text-sm font-semibold text-[var(--text-main)] animate-pulse">Loading Tasho...</div>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return <Auth />;
-  }
+  const isAppLoading = authLoading || !minSplashElapsed;
 
   return (
-    <AppLayout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/finance" element={<Finance />} />
-        <Route path="/habits" element={<Habits />} />
-        <Route path="/journal" element={<Journal />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </AppLayout>
+    <>
+      <AnimatePresence mode="wait">
+        {isAppLoading && <TashoLoadingScreen key="tasho-splash" />}
+      </AnimatePresence>
+
+      {!isAppLoading && (
+        !currentUser ? (
+          <Auth />
+        ) : (
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/finance" element={<Finance />} />
+              <Route path="/habits" element={<Habits />} />
+              <Route path="/journal" element={<Journal />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </AppLayout>
+        )
+      )}
+    </>
   );
 };
 
