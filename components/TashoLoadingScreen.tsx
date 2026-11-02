@@ -7,71 +7,66 @@ interface TashoLoadingScreenProps {
 }
 
 export const TashoLoadingScreen: React.FC<TashoLoadingScreenProps> = () => {
-  const blueColor = "#1D5BF0"; // Warna biru background logo Tasho
+  const blueBg = "#175DFD"; // Warna biru persis dari sampel gambar asli
 
-  // Varian animasi untuk transisi berurutan
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.2,
-        delayChildren: 0.1
-      }
+        staggerChildren: 0.12,
+        delayChildren: 0.1,
+      },
     },
     exit: {
       opacity: 0,
       scale: 1.02,
-      transition: { duration: 0.5, ease: "easeInOut" }
-    }
+      transition: {
+        duration: 0.45,
+        ease: "easeInOut",
+      },
+    },
   };
 
   const catVariants = {
-    hidden: { y: 50, scale: 0.8, opacity: 0 },
+    hidden: { y: 35, scale: 0.9, opacity: 0 },
     visible: {
       y: 0,
       scale: 1,
       opacity: 1,
       transition: {
         type: "spring",
-        stiffness: 120,
-        damping: 12
-      }
-    }
+        stiffness: 160,
+        damping: 14,
+      },
+    },
   };
 
-  const sparkVariants = {
+  const whiskerVariants = {
     hidden: { scale: 0, opacity: 0 },
     visible: {
       scale: 1,
       opacity: 1,
       transition: {
         type: "spring",
-        stiffness: 200,
-        damping: 10
-      }
-    }
+        stiffness: 260,
+        damping: 16,
+      },
+    },
   };
 
-  const textVariants = {
-    hidden: { y: 15, opacity: 0 },
+  const letterVariants = {
+    hidden: { y: 20, opacity: 0, scale: 0.85 },
     visible: {
       y: 0,
       opacity: 1,
-      transition: { duration: 0.5, ease: "easeOut" }
-    }
-  };
-
-  const pulseVariants = {
-    initial: { opacity: 0.4 },
-    animate: {
-      opacity: [0.4, 0.9, 0.4],
+      scale: 1,
       transition: {
-        duration: 1.5,
-        repeat: Infinity,
-        ease: "easeInOut"
-      }
-    }
+        type: "spring",
+        stiffness: 200,
+        damping: 15,
+      },
+    },
   };
 
   return (
@@ -80,139 +75,230 @@ export const TashoLoadingScreen: React.FC<TashoLoadingScreenProps> = () => {
       initial="hidden"
       animate="visible"
       exit="exit"
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center select-none"
+      className="fixed inset-0 z-[9999] flex flex-col justify-center items-center select-none"
       style={{
-        backgroundColor: blueColor,
-        fontFamily: "'Fredoka', -apple-system, BlinkMacSystemFont, sans-serif"
+        width: "100%",
+        minHeight: "100vh",
+        backgroundColor: blueBg,
       }}
     >
-      <div className="flex flex-col items-center gap-3">
-        {/* SVG Logo Vektor Tasho */}
-        <motion.svg
-          width="200"
-          height="160"
-          viewBox="0 0 200 160"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
+      <motion.svg
+        width="360"
+        height="360"
+        viewBox="120 150 780 730"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        variants={containerVariants}
+        className="max-w-[85vw] max-h-[75vh]"
+        style={{ overflow: "visible" }}
+      >
+        {/* ================= GRUP KUCING ================= */}
+        <motion.g
           variants={catVariants}
-          style={{ overflow: "visible" }}
+          style={{ transformOrigin: "490px 450px" }}
         >
-          {/* Badan Kucing */}
+          {/* Siluet Utama Badan, Telinga, Pipi & Tangan (1:1 Coordinate Trace) */}
           <path
-            d="M40 140 C20 140 25 100 45 60 L60 25 C62 20 70 22 75 35 L85 60 C95 55 110 55 120 60 L130 35 C135 22 143 20 145 25 L160 60 C180 100 185 140 165 140 C155 140 150 125 140 125 C130 125 125 140 115 140 C105 140 100 130 90 130 C80 130 75 140 65 140 C55 140 50 125 40 125 C30 125 25 140 15 140 Z"
-            fill="white"
-            stroke="white"
-            strokeWidth="10"
+            d="
+              M 498 317
+              C 482 317 440 265 390 220
+              C 358 190 328 194 316 230
+              C 295 292 288 338 278 360
+              C 245 415 215 478 198 532
+              C 162 562 158 615 190 644
+              C 215 662 248 660 264 654
+              C 282 662 308 660 322 652
+              C 340 662 365 654 378 630
+              L 614 630
+              C 626 654 650 662 668 652
+              C 684 660 710 662 728 654
+              C 748 660 778 662 802 642
+              C 832 612 824 558 788 532
+              C 775 472 745 412 710 364
+              C 700 335 692 290 680 232
+              C 670 194 640 192 608 220
+              C 558 265 514 317 498 317 Z
+            "
+            fill="#FFFFFF"
+          />
+
+          {/* Garis Jari Tangan Kiri (Cutout Biru) */}
+          <path
+            d="M 262 658 C 266 635 262 612 254 600"
+            stroke={blueBg}
+            strokeWidth="22"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 328 654 C 330 626 322 600 312 588"
+            stroke={blueBg}
+            strokeWidth="22"
+            strokeLinecap="round"
+          />
+
+          {/* Garis Jari Tangan Kanan (Cutout Biru) */}
+          <path
+            d="M 664 654 C 662 626 670 600 680 588"
+            stroke={blueBg}
+            strokeWidth="22"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 730 658 C 726 635 730 612 738 600"
+            stroke={blueBg}
+            strokeWidth="22"
+            strokeLinecap="round"
+          />
+
+          {/* Mata Kiri + Pupil Putih */}
+          <ellipse
+            cx="420"
+            cy="486"
+            rx="54"
+            ry="74"
+            transform="rotate(14 420 486)"
+            fill={blueBg}
+          />
+          <ellipse
+            cx="442"
+            cy="486"
+            rx="21"
+            ry="38"
+            transform="rotate(14 442 486)"
+            fill="#FFFFFF"
+          />
+
+          {/* Mata Kanan + Pupil Putih */}
+          <ellipse
+            cx="636"
+            cy="492"
+            rx="56"
+            ry="74"
+            transform="rotate(14 636 492)"
+            fill={blueBg}
+          />
+          <ellipse
+            cx="636"
+            cy="492"
+            rx="22"
+            ry="40"
+            transform="rotate(14 636 492)"
+            fill="#FFFFFF"
+          />
+
+          {/* Hidung Segitiga Membulat */}
+          <path
+            d="
+              M 505 538
+              Q 523 534 541 538
+              Q 552 541 545 552
+              L 531 572
+              Q 523 582 515 572
+              L 501 552
+              Q 494 541 505 538 Z
+            "
+            fill={blueBg}
+          />
+        </motion.g>
+
+        {/* ================= GARIS AKSEN KANAN (SPARKS) ================= */}
+        <motion.path
+          variants={whiskerVariants}
+          d="M 790 328 L 826 283"
+          stroke="#FFFFFF"
+          strokeWidth="32"
+          strokeLinecap="round"
+          style={{ transformOrigin: "790px 328px" }}
+        />
+        <motion.path
+          variants={whiskerVariants}
+          d="M 818 390 L 872 367"
+          stroke="#FFFFFF"
+          strokeWidth="32"
+          strokeLinecap="round"
+          style={{ transformOrigin: "818px 390px" }}
+        />
+        <motion.path
+          variants={whiskerVariants}
+          d="M 831 452 L 861 453"
+          stroke="#FFFFFF"
+          strokeWidth="30"
+          strokeLinecap="round"
+          style={{ transformOrigin: "831px 452px" }}
+        />
+
+        {/* ================= TIPOGRAFI VEKTOR "tasho" ================= */}
+        <motion.g variants={letterVariants}>
+          {/* Huruf 't' */}
+          <path
+            d="
+              M 252 708
+              L 251 800
+              C 251 825 266 832 282 827
+              M 218 752
+              L 283 752
+            "
+            stroke="#FFFFFF"
+            strokeWidth="44"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {/* Cakar Kucing (Garis Pemisah Biru) */}
+          {/* Huruf 'a' */}
           <path
-            d="M45 145 L50 125 M65 145 L60 125 M160 145 L155 125 M140 145 L145 125"
-            stroke={blueColor}
-            strokeWidth="8"
+            d="
+              M 405 768
+              C 388 742 332 746 332 792
+              C 332 836 388 838 407 808
+              M 410 752
+              L 412 826
+            "
+            stroke="#FFFFFF"
+            strokeWidth="42"
             strokeLinecap="round"
-          />
-
-          {/* Mata Kiri */}
-          <ellipse
-            cx="80"
-            cy="85"
-            rx="14"
-            ry="20"
-            fill={blueColor}
-            transform="rotate(15 80 85)"
-          />
-          <ellipse
-            cx="83"
-            cy="80"
-            rx="4"
-            ry="7"
-            fill="white"
-            transform="rotate(15 83 80)"
-          />
-
-          {/* Mata Kanan */}
-          <ellipse
-            cx="125"
-            cy="85"
-            rx="14"
-            ry="20"
-            fill={blueColor}
-            transform="rotate(-15 125 85)"
-          />
-          <ellipse
-            cx="128"
-            cy="80"
-            rx="4"
-            ry="7"
-            fill="white"
-            transform="rotate(-15 128 80)"
-          />
-
-          {/* Hidung */}
-          <path
-            d="M102 105 L108 105 L105 110 Z"
-            fill={blueColor}
-            stroke={blueColor}
-            strokeWidth="3"
             strokeLinejoin="round"
           />
 
-          {/* Percikan Kanan (Sparks) */}
-          <motion.line
-            variants={sparkVariants}
-            x1="165"
-            y1="55"
-            x2="180"
-            y2="40"
-            stroke="white"
-            strokeWidth="8"
+          {/* Huruf 's' */}
+          <path
+            d="
+              M 510 755
+              C 492 742 456 746 458 769
+              C 460 792 516 786 516 814
+              C 516 838 472 838 454 822
+            "
+            stroke="#FFFFFF"
+            strokeWidth="40"
             strokeLinecap="round"
+            strokeLinejoin="round"
           />
-          <motion.line
-            variants={sparkVariants}
-            x1="175"
-            y1="70"
-            x2="190"
-            y2="60"
-            stroke="white"
-            strokeWidth="8"
-            strokeLinecap="round"
-          />
-          <motion.line
-            variants={sparkVariants}
-            x1="180"
-            y1="85"
-            x2="192"
-            y2="83"
-            stroke="white"
-            strokeWidth="8"
-            strokeLinecap="round"
-          />
-        </motion.svg>
 
-        {/* Teks Tasho */}
-        <motion.h1
-          variants={textVariants}
-          className="text-white text-5xl font-extrabold tracking-tight m-0"
-        >
-          tasho
-        </motion.h1>
+          {/* Huruf 'h' */}
+          <path
+            d="
+              M 568 696
+              L 562 826
+              M 565 776
+              C 582 748 634 750 632 786
+              L 630 826
+            "
+            stroke="#FFFFFF"
+            strokeWidth="44"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
 
-        {/* Subtle loading dots indicator */}
-        <motion.div
-          variants={pulseVariants}
-          initial="initial"
-          animate="animate"
-          className="flex items-center gap-1.5 mt-2"
-        >
-          <span className="w-2 h-2 rounded-full bg-white/70"></span>
-          <span className="w-2 h-2 rounded-full bg-white/70"></span>
-          <span className="w-2 h-2 rounded-full bg-white/70"></span>
-        </motion.div>
-      </div>
+          {/* Huruf 'o' */}
+          <ellipse
+            cx="726"
+            cy="792"
+            rx="34"
+            ry="32"
+            stroke="#FFFFFF"
+            strokeWidth="42"
+          />
+        </motion.g>
+      </motion.svg>
     </motion.div>
   );
 };
